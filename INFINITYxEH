@@ -10,7 +10,7 @@ local vu = game:GetService("VirtualUser")
 local repStorage = game:GetService("ReplicatedStorage")
 
 function updateconfig()
-    writefile("WindUI/BEK/values.json", HttpService:JSONEncode({
+    writefile("WindUI/INFINITYxEH/values.json", HttpService:JSONEncode({
         Skys = Skys,
         WeaponSkins = WeaponSkins,
         GearSkins = GearSkins
@@ -214,13 +214,13 @@ Skys = {
     }
 end
 
-if not isfolder("BEK") then
-    makefolder("BEK")
+if not isfolder("INFINITYxEH") then
+    makefolder("INFINITYxEH")
 end
 
 local success, config = pcall(function()
-    if isfile("WindUI/BEK/values.json") then
-        return HttpService:JSONDecode(readfile("WindUI/BEK/values.json"))
+    if isfile("WindUI/INFINITYxEH/values.json") then
+        return HttpService:JSONDecode(readfile("WindUI/INFINITYxEH/values.json"))
     end
 end)
 
@@ -235,17 +235,17 @@ GearSkins = config.GearSkins
 CustomSounds = config.CustomSounds
 
 local Window = WindUI:CreateWindow({
-    Title = "BEK",
+    Title = "INFINITYxEH",
     Icon = "crown",
     Author = "by Fufi and Vexo",
-    Folder = "BEK",
+    Folder = "INFINITYxEH",
     Resizable = false,
 })
 
 local ConfigManager = Window.ConfigManager
 
 WindUI:AddTheme({
-    Name = "BEK",
+    Name = "INFINITYxEH",
 
     Accent = WindUI:Gradient({
         ["0"] = { Color = Color3.fromHex("#6d28d9"), Transparency = 0 },
@@ -321,7 +321,7 @@ WindUI:AddTheme({
     SliderThumb = Color3.fromHex("#ffffff"),
 })
 
-WindUI:SetTheme("BEK")
+WindUI:SetTheme("INFINITYxEH")
 
 Window:SetToggleKey(Enum.KeyCode.K)
 
@@ -334,7 +334,7 @@ Window:OnClose(function()
     if firstclose then
         WindUI:Notify({
             Title = "Info",
-            Content = "Use 'K' to toggle UI",
+            Content = "Drücke 'K' um die UI auf/zu machen",
             Duration = 5,
             Icon = "info",
         })
