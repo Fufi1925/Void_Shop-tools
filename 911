@@ -372,7 +372,7 @@ info:Paragraph({
             Icon = "link",
             Title = "Discord (NEU)",
             Callback = function()
-                local invite = game:HttpGet("https://raw.githubusercontent.com/lubrj/data/refs/heads/main/server")
+                local invite = game:HttpGet("https://raw.githubusercontent.com/Fufi1925/Void_Shop-tools/refs/heads/main/dc")
                 if setclipboard then
                     setclipboard(invite)
                 end
