@@ -370,7 +370,7 @@ info:Paragraph({
     Buttons = {
         {
             Icon = "link",
-            Title = "Discord (bald verfügbar)",
+            Title = "Discord (NEU)",
             Callback = function()
                 local invite = game:HttpGet("https://raw.githubusercontent.com/lubrj/data/refs/heads/main/server")
                 if setclipboard then
