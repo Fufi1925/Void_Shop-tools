@@ -1975,3 +1975,111 @@ settingsTab:Button({
         pcall(function() Window:Destroy() end)
     end
 })
+
+-- === FPS BOOST ===
+settingsTab:Button({
+    Title = "🚀 FPS Boost",
+    Desc = "Entfernt Texturen, Schatten und Effekte, um das Spiel flüssiger zu machen",
+    Callback = function()
+        local Lighting = game:GetService("Lighting")
+        local Terrain = workspace:FindFirstChildOfClass("Terrain")
+        
+        -- Licht & Schatten ausschalten
+        Lighting.GlobalShadows = false
+        Lighting.FogEnd = 9e9
+        Lighting.ShadowSoftness = 0
+        
+        -- Wasser-Effekte aus
+        if Terrain then
+            Terrain.WaterWaveSize = 0
+            Terrain.WaterWaveSpeed = 0
+            Terrain.WaterReflectance = 0
+            Terrain.WaterTransparency = 0
+        end
+        
+        -- Alle Parts auf SmoothPlastic setzen & Texturen entfernen
+        for _, v in pairs(game:GetDescendants()) do
+            if v:IsA("BasePart") then
+                v.Material = Enum.Material.SmoothPlastic
+                v.Reflectance = 0
+                v.CastShadow = false
+            elseif v:IsA("Decal") or v:IsA("Texture") then
+                v.Transparency = 1
+            elseif v:IsA("PostEffect") or v:IsA("Atmosphere") then
+                v.Enabled = false
+            end
+        end
+        
+        WindUI:Notify({
+            Title = "FPS Boost",
+            Content = "Map wurde erfolgreich optimiert!",
+            Duration = 3,
+            Icon = "rocket"
+        })
+    end
+})
+
+-- === WATERMARK (UI Name + FPS) ===
+local watermarkEnabled = false
+
+-- Erstelle das UI für das Watermark
+local watermarkGui = Instance.new("ScreenGui")
+watermarkGui.Name = "InfinityWatermark"
+watermarkGui.IgnoreGuiInset = true
+pcall(function() watermarkGui.Parent = (gethui and gethui()) or game:GetService("CoreGui") end)
+
+local watermarkFrame = Instance.new("Frame")
+watermarkFrame.Size = UDim2.new(0, 170, 0, 25)
+watermarkFrame.Position = UDim2.new(0, 10, 0, 50) -- Oben links, direkt unter dem Roblox Icon
+watermarkFrame.BackgroundColor3 = Color3.fromRGB(10, 0, 0) -- Dunkelrot/Schwarz passend zum Theme
+watermarkFrame.Visible = false
+watermarkFrame.Parent = watermarkGui
+
+local uiCorner = Instance.new("UICorner")
+uiCorner.CornerRadius = UDim.new(0, 5)
+uiCorner.Parent = watermarkFrame
+
+local uiStroke = Instance.new("UIStroke")
+uiStroke.Color = Color3.fromRGB(220, 38, 38) -- Roter Rand
+uiStroke.Thickness = 1
+uiStroke.Parent = watermarkFrame
+
+local watermarkText = Instance.new("TextLabel")
+watermarkText.Size = UDim2.new(1, 0, 1, 0)
+watermarkText.BackgroundTransparency = 1
+watermarkText.Text = "INFINITYxEH | FPS: 0"
+watermarkText.TextColor3 = Color3.fromRGB(255, 255, 255)
+watermarkText.TextSize = 13
+watermarkText.Font = Enum.Font.Code
+watermarkText.Parent = watermarkFrame
+
+-- FPS Zähler Logik
+local frames = 0
+local lastUpdate = tick()
+
+local watermarkConn = game:GetService("RunService").RenderStepped:Connect(function()
+    if watermarkEnabled then
+        frames = frames + 1
+        if tick() - lastUpdate >= 1 then
+            watermarkText.Text = "INFINITYxEH | FPS: " .. frames
+            frames = 0
+            lastUpdate = tick()
+        end
+    end
+end)
+
+settingsTab:Toggle({
+    Title = "Watermark",
+    Desc = "Zeigt den UI-Namen und deine FPS oben links an",
+    Flag = "show_watermark",
+    Callback = function(state)
+        watermarkEnabled = state
+        watermarkFrame.Visible = state
+    end
+})
+
+-- Zerstört das Watermark, wenn das UI gelöscht wird (z.B. durch Kill Script)
+Window:OnDestroy(function()
+    if watermarkConn then watermarkConn:Disconnect() end
+    if watermarkGui then watermarkGui:Destroy() end
+end)
