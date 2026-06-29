@@ -2068,7 +2068,7 @@ end)
 
 -- NEUER AUTO TAB
 
-local autoTab = Window:Tab({
+local settingsTab = Window:Tab({
     Title = "Auto",
     Icon = "car"
 })
