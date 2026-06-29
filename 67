@@ -1190,153 +1190,216 @@ skins:Button({
     end
 })
 
-crosshair = Window:Tab({
-    Title = "Crosshair (down)",
+local crosshairTab = Window:Tab({
+    Title = "Crosshair",
     Icon = "crosshair"
 })
 
-local crosshaircolor = Color3.new(1,1,1)
-local crosshairthickness = 2
-local crosshairlength = 16
-local crosshairgap = 2
-local usecrosshair = false
-local staticcrosshair = false
-local nofadecrosshair = false
+-- Crosshair Settings
+local chEnabled = false
+local chHideOriginal = false
+local chColor = Color3.new(1, 1, 1)
+local chThickness = 2
+local chLength = 12
+local chGap = 4
+local chDot = false
+local chSpin = false
+local chSpinSpeed = 100
+local chRGB = false
 
-local cross
-for _, gui in pairs(localPlayer.PlayerGui:GetChildren()) do
-    local first = gui:GetChildren()[1]
-    if first then
-        local target = first:FindFirstChild("5")
-        if target and target:IsA("ImageLabel") and target.Image == "rbxassetid://285779644" then
-            cross = first
-            break
-        end
-    end
+-- Zeichnungsobjekte (Sicherer als das Spiel-UI zu modifizieren)
+local UserInputService = game:GetService("UserInputService")
+local chLines = {
+    Top = Drawing.new("Line"),
+    Bottom = Drawing.new("Line"),
+    Left = Drawing.new("Line"),
+    Right = Drawing.new("Line")
+}
+local chCenterDot = Drawing.new("Circle")
+
+for _, line in pairs(chLines) do
+    line.Visible = false
+    line.ZIndex = 1000
 end
+chCenterDot.Visible = false
+chCenterDot.Filled = true
+chCenterDot.ZIndex = 1000
 
-if not cross then return end
+local currentRotation = 0
 
-local p1 = cross:FindFirstChild("1") --up
-local p2 = cross:FindFirstChild("2") --left
-local p3 = cross:FindFirstChild("3") --down
-local p4 = cross:FindFirstChild("4") --right
-local lastframe = 25
-
-if not (p1 and p2 and p3 and p4) then return end
-
-RunService.RenderStepped:Connect(function(dt)
-    if not usecrosshair then return end
-
-    local t = crosshairthickness
-    local l = crosshairlength
-    local g = crosshairgap
-
-    p1.BackgroundColor3 = crosshaircolor
-    p2.BackgroundColor3 = crosshaircolor
-    p3.BackgroundColor3 = crosshaircolor
-    p4.BackgroundColor3 = crosshaircolor
-
-    p1.Size = UDim2.new(0, t, 0, l)
-    p2.Size = UDim2.new(0, l, 0, t)
-    p3.Size = UDim2.new(0, t, 0, l)
-    p4.Size = UDim2.new(0, l, 0, t)
-
-    if cross.Size.X.Offset < l + g*2 or staticcrosshair then  
-        cross.Size = UDim2.new(0, l + g*2, 0, l + g*2)
-    end
-
-    if 25 > l + g*2 and cross.Size.X.Offset < 26 and p1.Transparency < 0.1 then
-        lastframe = math.max(l + g*2, lastframe - dt*75)
-        cross.Size = UDim2.new(0, lastframe, 0, lastframe)
-    end
-
-    if cross.Size.X.Offset > 26 then
-        lastframe = 25
-    end
-
-    if p1.Transparency < 1 and nofadecrosshair then
-        p1.Transparency = 0
-        p2.Transparency = 0
-        p3.Transparency = 0
-        p4.Transparency = 0
-    end
-
-end)
-
-crosshair:Toggle({
+-- UI Elemente
+crosshairTab:Toggle({
     Title = "Use Custom Crosshair",
-    Flag = "crosshair",
+    Desc = "Aktiviert das eigene Fadenkreuz",
+    Flag = "ch_enable",
     Callback = function(state)
-        usecrosshair = state
-        if state == false then
-            p1.Size = UDim2.new(0, 2, 0, 15)
-            p2.Size = UDim2.new(0, 15, 0, 2)
-            p3.Size = UDim2.new(0, 2, 0, 15)
-            p4.Size = UDim2.new(0, 15, 0, 2)
-
-            p1.BackgroundColor3 = Color3.new(1,1,1)
-            p2.BackgroundColor3 = Color3.new(1,1,1)
-            p3.BackgroundColor3 = Color3.new(1,1,1)
-            p4.BackgroundColor3 = Color3.new(1,1,1)
-        end
+        chEnabled = state
     end
 })
 
-crosshair:Colorpicker({
+crosshairTab:Toggle({
+    Title = "Hide Original Crosshair",
+    Desc = "Versteckt das Fadenkreuz von Emergency Hamburg",
+    Flag = "ch_hide",
+    Callback = function(state)
+        chHideOriginal = state
+    end
+})
+
+crosshairTab:Toggle({
+    Title = "Center Dot",
+    Desc = "Fügt einen Punkt in die Mitte hinzu",
+    Flag = "ch_dot",
+    Callback = function(state)
+        chDot = state
+    end
+})
+
+crosshairTab:Toggle({
+    Title = "Rainbow (RGB) Mode",
+    Desc = "Das Fadenkreuz wechselt die Farben",
+    Flag = "ch_rgb",
+    Callback = function(state)
+        chRGB = state
+    end
+})
+
+crosshairTab:Toggle({
+    Title = "Spinning (Rotieren)",
+    Desc = "Lässt das Fadenkreuz drehen",
+    Flag = "ch_spin",
+    Callback = function(state)
+        chSpin = state
+    end
+})
+
+crosshairTab:Colorpicker({
     Title = "Color",
+    Default = chColor,
     Callback = function(c)
-        crosshaircolor = c
+        chColor = c
     end
 })
 
-crosshair:Slider({
+crosshairTab:Slider({
     Title = "Thickness",
     Step = 1,
-    Value = {Min = 1, Max = 30, Default = 2},
-    Flag = "tickness",
+    Value = {Min = 1, Max = 10, Default = 2},
     Callback = function(v)
-        crosshairthickness = v
+        chThickness = v
     end
 })
 
-crosshair:Slider({
+crosshairTab:Slider({
     Title = "Length",
     Step = 1,
-    Value = {Min = 1, Max = 100, Default = 16},
-    Flag = "length",
+    Value = {Min = 1, Max = 50, Default = 12},
     Callback = function(v)
-        crosshairlength = v
+        chLength = v
     end
 })
 
-crosshair:Slider({
+crosshairTab:Slider({
     Title = "Gap",
     Step = 1,
-    Value = {Min = 0, Max = 30, Default = 2},
-    Flag = "gap",
+    Value = {Min = 0, Max = 30, Default = 4},
     Callback = function(v)
-        crosshairgap = v
+        chGap = v
     end
 })
 
-crosshair:Toggle({
-    Title = "Static",
-    Desc = "fixed position with no movement",
-    Flag = "static",
-    Callback = function(state)
-        staticcrosshair = state
+crosshairTab:Slider({
+    Title = "Spin Speed",
+    Desc = "Wie schnell sich das Fadenkreuz dreht",
+    Step = 10,
+    Value = {Min = 10, Max = 500, Default = 100},
+    Callback = function(v)
+        chSpinSpeed = v
     end
 })
 
-crosshair:Toggle({
-    Title = "No Fade",
-    Desc = "Fade in animation is skiped",
-    Flag = "nofade",
-    Callback = function(state)
-        nofadecrosshair = state
+-- Render-Loop für das Custom Crosshair
+local crosshairConnection = RunService.RenderStepped:Connect(function(dt)
+    -- Altes EH Crosshair ausblenden (Crash-sicher)
+    pcall(function()
+        local plrGui = localPlayer:FindFirstChild("PlayerGui")
+        if plrGui then
+            for _, gui in pairs(plrGui:GetChildren()) do
+                local first = gui:GetChildren()[1]
+                if first then
+                    local target = first:FindFirstChild("5")
+                    if target and target:IsA("ImageLabel") and target.Image == "rbxassetid://285779644" then
+                        first.Visible = not chHideOriginal
+                    end
+                end
+            end
+        end
+    end)
+
+    if not chEnabled then
+        for _, line in pairs(chLines) do line.Visible = false end
+        chCenterDot.Visible = false
+        return
     end
-})
+
+    local mousePos = UserInputService:GetMouseLocation()
+    local color = chRGB and Color3.fromHSV(tick() % 5 / 5, 1, 1) or chColor
+
+    if chSpin then
+        currentRotation = currentRotation + (chSpinSpeed * dt)
+        if currentRotation >= 360 then currentRotation = currentRotation - 360 end
+    else
+        currentRotation = 0
+    end
+
+    local rad = math.rad(currentRotation)
+    local cosA = math.cos(rad)
+    local sinA = math.sin(rad)
+
+    -- Funktion zum Rotieren der Positionen
+    local function rotatePoint(offsetX, offsetY)
+        return Vector2.new(
+            mousePos.X + (offsetX * cosA - offsetY * sinA),
+            mousePos.Y + (offsetX * sinA + offsetY * cosA)
+        )
+    end
+
+    -- Berechnungen
+    chLines.Top.From = rotatePoint(0, -chGap)
+    chLines.Top.To = rotatePoint(0, -(chGap + chLength))
+    
+    chLines.Bottom.From = rotatePoint(0, chGap)
+    chLines.Bottom.To = rotatePoint(0, chGap + chLength)
+    
+    chLines.Left.From = rotatePoint(-chGap, 0)
+    chLines.Left.To = rotatePoint(-(chGap + chLength), 0)
+    
+    chLines.Right.From = rotatePoint(chGap, 0)
+    chLines.Right.To = rotatePoint(chGap + chLength, 0)
+
+    -- Anwenden
+    for _, line in pairs(chLines) do
+        line.Color = color
+        line.Thickness = chThickness
+        line.Visible = true
+    end
+
+    if chDot then
+        chCenterDot.Position = mousePos
+        chCenterDot.Radius = chThickness
+        chCenterDot.Color = color
+        chCenterDot.Visible = true
+    else
+        chCenterDot.Visible = false
+    end
+end)
+
+-- Aufräumen, wenn das Script geschlossen wird
+Window:OnDestroy(function()
+    if crosshairConnection then crosshairConnection:Disconnect() end
+    for _, line in pairs(chLines) do line:Remove() end
+    if chCenterDot then chCenterDot:Remove() end
+end)
 
 soundtab = Window:Tab({
     Title = "Sounds",
