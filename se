@@ -1657,31 +1657,102 @@ local settingsTab = Window:Tab({
 settingsTab:Dropdown({
     Title = "UI Farbe",
     Desc = "Ändere den Hintergrund des UIs",
-    Values = {"Rot zu Schwarz", "Tiefschwarz", "Tiefschwarz und Blau", "Weiß", "Grün zu Schwarz"},
+    Values = {
+        "Cyber Purple", "Blood Red", "Ice Blue", "Toxic Green", 
+        "Gold Luxury", "Pink Galaxy", "Ocean Deep", "Fire Orange", 
+        "White Minimal", "Matrix", "Midnight Violet", "Sky Fade", 
+        "Ruby Black", "Emerald Dark", "Neon RGB"
+    },
     Multi = false,
     AllowNone = false,
-    Value = "Rot zu Schwarz",
+    Value = "Cyber Purple",
     Callback = function(option)
         local newBackground
         
-        if option == "Rot zu Schwarz" then
-            newBackground = WindUI:Gradient({
-                ["0"]   = { Color = Color3.fromHex("#4a0a0a"), Transparency = 0 },
-                ["100"] = { Color = Color3.fromHex("#000000"), Transparency = 0 },
-            }, { Rotation = 45 })
-        elseif option == "Tiefschwarz" then
-            newBackground = Color3.fromHex("#000000")
-        elseif option == "Tiefschwarz und Blau" then
+        if option == "Cyber Purple" then
             newBackground = WindUI:Gradient({
                 ["0"]   = { Color = Color3.fromHex("#000000"), Transparency = 0 },
-                ["100"] = { Color = Color3.fromHex("#000055"), Transparency = 0 },
+                ["50"]  = { Color = Color3.fromHex("#6d28d9"), Transparency = 0 },
+                ["100"] = { Color = Color3.fromHex("#2563eb"), Transparency = 0 },
             }, { Rotation = 45 })
-        elseif option == "Weiß" then
-            newBackground = Color3.fromHex("#ffffff")
-        elseif option == "Grün zu Schwarz" then
+        elseif option == "Blood Red" then
             newBackground = WindUI:Gradient({
-                ["0"]   = { Color = Color3.fromHex("#0a4a0a"), Transparency = 0 },
-                ["100"] = { Color = Color3.fromHex("#000000"), Transparency = 0 },
+                ["0"]   = { Color = Color3.fromHex("#000000"), Transparency = 0 },
+                ["50"]  = { Color = Color3.fromHex("#450a0a"), Transparency = 0 },
+                ["100"] = { Color = Color3.fromHex("#dc2626"), Transparency = 0 },
+            }, { Rotation = 45 })
+        elseif option == "Ice Blue" then
+            newBackground = WindUI:Gradient({
+                ["0"]   = { Color = Color3.fromHex("#020617"), Transparency = 0 },
+                ["50"]  = { Color = Color3.fromHex("#06b6d4"), Transparency = 0 },
+                ["100"] = { Color = Color3.fromHex("#ffffff"), Transparency = 0 },
+            }, { Rotation = 45 })
+        elseif option == "Toxic Green" then
+            newBackground = WindUI:Gradient({
+                ["0"]   = { Color = Color3.fromHex("#000000"), Transparency = 0 },
+                ["100"] = { Color = Color3.fromHex("#22c55e"), Transparency = 0 },
+            }, { Rotation = 45 })
+        elseif option == "Gold Luxury" then
+            newBackground = WindUI:Gradient({
+                ["0"]   = { Color = Color3.fromHex("#000000"), Transparency = 0 },
+                ["50"]  = { Color = Color3.fromHex("#78350f"), Transparency = 0 },
+                ["100"] = { Color = Color3.fromHex("#facc15"), Transparency = 0 },
+            }, { Rotation = 45 })
+        elseif option == "Pink Galaxy" then
+            newBackground = WindUI:Gradient({
+                ["0"]   = { Color = Color3.fromHex("#000000"), Transparency = 0 },
+                ["50"]  = { Color = Color3.fromHex("#ec4899"), Transparency = 0 },
+                ["100"] = { Color = Color3.fromHex("#7c3aed"), Transparency = 0 },
+            }, { Rotation = 45 })
+        elseif option == "Ocean Deep" then
+            newBackground = WindUI:Gradient({
+                ["0"]   = { Color = Color3.fromHex("#020617"), Transparency = 0 },
+                ["50"]  = { Color = Color3.fromHex("#0f766e"), Transparency = 0 },
+                ["100"] = { Color = Color3.fromHex("#14b8a6"), Transparency = 0 },
+            }, { Rotation = 45 })
+        elseif option == "Fire Orange" then
+            newBackground = WindUI:Gradient({
+                ["0"]   = { Color = Color3.fromHex("#000000"), Transparency = 0 },
+                ["50"]  = { Color = Color3.fromHex("#991b1b"), Transparency = 0 },
+                ["100"] = { Color = Color3.fromHex("#f97316"), Transparency = 0 },
+            }, { Rotation = 45 })
+        elseif option == "White Minimal" then
+            newBackground = WindUI:Gradient({
+                ["0"]   = { Color = Color3.fromHex("#ffffff"), Transparency = 0 },
+                ["100"] = { Color = Color3.fromHex("#d4d4d4"), Transparency = 0 },
+            }, { Rotation = 45 })
+        elseif option == "Matrix" then
+            newBackground = WindUI:Gradient({
+                ["0"]   = { Color = Color3.fromHex("#000000"), Transparency = 0 },
+                ["50"]  = { Color = Color3.fromHex("#052e16"), Transparency = 0 },
+                ["100"] = { Color = Color3.fromHex("#00ff66"), Transparency = 0 },
+            }, { Rotation = 45 })
+        elseif option == "Midnight Violet" then
+            newBackground = WindUI:Gradient({
+                ["0"]   = { Color = Color3.fromHex("#000000"), Transparency = 0 },
+                ["100"] = { Color = Color3.fromHex("#2e1065"), Transparency = 0 },
+            }, { Rotation = 45 })
+        elseif option == "Sky Fade" then
+            newBackground = WindUI:Gradient({
+                ["0"]   = { Color = Color3.fromHex("#1d4ed8"), Transparency = 0 },
+                ["50"]  = { Color = Color3.fromHex("#38bdf8"), Transparency = 0 },
+                ["100"] = { Color = Color3.fromHex("#ffffff"), Transparency = 0 },
+            }, { Rotation = 45 })
+        elseif option == "Ruby Black" then
+            newBackground = WindUI:Gradient({
+                ["0"]   = { Color = Color3.fromHex("#000000"), Transparency = 0 },
+                ["100"] = { Color = Color3.fromHex("#881337"), Transparency = 0 },
+            }, { Rotation = 45 })
+        elseif option == "Emerald Dark" then
+            newBackground = WindUI:Gradient({
+                ["0"]   = { Color = Color3.fromHex("#000000"), Transparency = 0 },
+                ["100"] = { Color = Color3.fromHex("#047857"), Transparency = 0 },
+            }, { Rotation = 45 })
+        elseif option == "Neon RGB" then
+            newBackground = WindUI:Gradient({
+                ["0"]   = { Color = Color3.fromHex("#ef4444"), Transparency = 0 },
+                ["50"]  = { Color = Color3.fromHex("#3b82f6"), Transparency = 0 },
+                ["100"] = { Color = Color3.fromHex("#22c55e"), Transparency = 0 },
             }, { Rotation = 45 })
         end
 
@@ -1700,7 +1771,7 @@ settingsTab:Dropdown({
             Icon = Color3.fromHex("#8f88ff"),
             Hover = Color3.fromHex("#151236"),
             
-            WindowBackground = newBackground, -- Hier wird die neue Farbe eingesetzt
+            WindowBackground = newBackground, 
             
             WindowShadow = Color3.fromHex("#000000"),
             DialogBackground = Color3.fromHex("#000000"),
@@ -1742,7 +1813,7 @@ settingsTab:Dropdown({
 })
 
 settingsTab:Button({
-    Title = "🔴 KILL SCRIPT 🔴",
+    Title = '<font color="#ff0000">🔴 KILL SCRIPT 🔴</font>',
     Desc = "Löscht das UI und setzt alles im Spiel auf Standard zurück",
     Callback = function()
         -- Himmel & Lighting
