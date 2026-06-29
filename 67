@@ -1569,34 +1569,40 @@ misc:Button({
     end
 })
 
--- the lib is just ass and we wont continue the project
-local configtab = Window:Tab({
+local configTab = Window:Tab({
     Title = "Config",
-    Icon = "shredder"
+    Icon = "file-json"
 })
 
-local selectedConfig
-local configName
+local selectedConfig = nil
+local configInputName = ""
 
+-- Funktion, die alle Configs sicher abruft
 local function getConfigs()
-    if not WindUI.Configs then return {} end
     local list = {}
-    for name, _ in pairs(WindUI.Configs) do
-        table.insert(list, name)
-    end
+    pcall(function()
+        if WindUI and WindUI.Configs then
+            for name, _ in pairs(WindUI.Configs) do
+                table.insert(list, name)
+            end
+        end
+    end)
     table.sort(list)
     return list
 end
 
-local function refreshDropdown()
-    local configs = getConfigs()
-    configselect:Refresh(configs)
-    configselect:Set(nil)
-    selectedConfig = nil
-end
+-- UI Elemente
+local configInput = configTab:Input({
+    Title = "Neue Config erstellen",
+    Placeholder = "Name hier eingeben...",
+    Callback = function(text)
+        configInputName = text
+    end
+})
 
-configselect = configtab:Dropdown({
-    Title = "Configs",
+local configDropdown = configTab:Dropdown({
+    Title = "Gespeicherte Configs",
+    Desc = "Wähle eine Config zum Laden oder Löschen",
     Values = getConfigs(),
     AllowNone = true,
     Multi = false,
@@ -1605,140 +1611,115 @@ configselect = configtab:Dropdown({
     end
 })
 
-confignameinput = configtab:Input({
-    Title = "Config Name",
-    Placeholder = "Enter config name",
-    Callback = function(value)
-        configName = value
+configTab:Button({
+    Title = "💾 Speichern / Überschreiben",
+    Desc = "Speichert die aktuellen UI-Einstellungen",
+    Callback = function()
+        -- Wenn ein Text im Feld steht, nimm diesen, ansonsten nimm die Auswahl aus dem Dropdown
+        local nameToSave = (configInputName ~= "") and configInputName or selectedConfig
+
+        if not nameToSave or nameToSave == "" then
+            WindUI:Notify({
+                Title = "Fehler",
+                Content = "Bitte gib einen Namen ein oder wähle eine Config aus!",
+                Duration = 3,
+                Icon = "triangle-alert"
+            })
+            return
+        end
+
+        pcall(function()
+            local cfg = WindUI:GetConfig(nameToSave)
+            if cfg then cfg:Save() end
+        end)
+
+        WindUI:Notify({
+            Title = "Erfolg",
+            Content = "Config '" .. nameToSave .. "' wurde gespeichert!",
+            Duration = 3,
+            Icon = "check"
+        })
+
+        -- UI aktualisieren
+        configDropdown:Refresh(getConfigs())
+        configInput:Set("")
+        configInputName = ""
     end
 })
 
-configtab:Button({
-    Title = "Create / Save Config",
+configTab:Button({
+    Title = "📂 Config Laden",
+    Desc = "Lädt die ausgewählte Config aus dem Dropdown",
     Callback = function()
-        if not configName or configName == "" then
+        if not selectedConfig or selectedConfig == "" then
             WindUI:Notify({
-                Title = "Error",
-                Content = "Invalid config name",
+                Title = "Fehler",
+                Content = "Du musst zuerst eine Config im Dropdown auswählen!",
                 Duration = 3,
                 Icon = "triangle-alert"
             })
             return
         end
 
-        local config = WindUI:GetConfig(configName)
-        if not config then
-            WindUI:Notify({
-                Title = "Error",
-                Content = "Config system not initialized",
-                Duration = 3,
-                Icon = "triangle-alert"
-            })
-            return
-        end
-
-        config:Save()
-
-        refreshDropdown()
-        confignameinput:Set("")
+        pcall(function()
+            local cfg = WindUI:GetConfig(selectedConfig)
+            if cfg then cfg:Load() end
+        end)
 
         WindUI:Notify({
-            Title = "Success",
-            Content = "Saved config: " .. configName,
+            Title = "Erfolg",
+            Content = "Config '" .. selectedConfig .. "' erfolgreich geladen!",
             Duration = 3,
             Icon = "check"
         })
     end
 })
 
-configtab:Button({
-    Title = "Load Config",
+configTab:Button({
+    Title = "🗑️ Config Löschen",
+    Desc = "Löscht die ausgewählte Config dauerhaft",
     Callback = function()
-        if not selectedConfig then
+        if not selectedConfig or selectedConfig == "" then
             WindUI:Notify({
-                Title = "Error",
-                Content = "No config selected",
+                Title = "Fehler",
+                Content = "Wähle eine Config im Dropdown zum Löschen aus!",
                 Duration = 3,
                 Icon = "triangle-alert"
             })
             return
         end
 
-        local config = WindUI:GetConfig(selectedConfig)
-        if not config then
-            WindUI:Notify({
-                Title = "Error",
-                Content = "Config not found",
-                Duration = 3,
-                Icon = "triangle-alert"
-            })
-            return
-        end
-
-        config:Load()
+        pcall(function()
+            local cfg = WindUI:GetConfig(selectedConfig)
+            if cfg then cfg:Delete() end
+        end)
 
         WindUI:Notify({
-            Title = "Success",
-            Content = "Loaded config: " .. selectedConfig,
+            Title = "Erfolg",
+            Content = "Config '" .. selectedConfig .. "' wurde gelöscht.",
             Duration = 3,
-            Icon = "check"
-        })
-    end
-})
-
-configtab:Button({
-    Title = "Delete Config",
-    Callback = function()
-        if not selectedConfig then
-            WindUI:Notify({
-                Title = "Error",
-                Content = "No config selected",
-                Duration = 3,
-                Icon = "triangle-alert"
-            })
-            return
-        end
-
-        local config = WindUI:GetConfig(selectedConfig)
-        if not config then
-            WindUI:Notify({
-                Title = "Error",
-                Content = "Config not found",
-                Duration = 3,
-                Icon = "triangle-alert"
-            })
-            return
-        end
-
-        config:Delete()
-
-        refreshDropdown()
-
-        WindUI:Notify({
-            Title = "Success",
-            Content = "Deleted config: " .. selectedConfig,
-            Duration = 3,
-            Icon = "check"
+            Icon = "trash"
         })
 
+        -- UI aktualisieren
         selectedConfig = nil
+        configDropdown:Refresh(getConfigs())
+        configDropdown:Set(nil)
     end
 })
 
-Window:OnDestroy(function()
-    skinactive = false
-    usecrosshair = false
-    p1.Size = UDim2.new(0, 2, 0, 15)
-    p2.Size = UDim2.new(0, 15, 0, 2)
-    p3.Size = UDim2.new(0, 2, 0, 15)
-    p4.Size = UDim2.new(0, 15, 0, 2)
-
-    p1.BackgroundColor3 = Color3.new(1,1,1)
-    p2.BackgroundColor3 = Color3.new(1,1,1)
-    p3.BackgroundColor3 = Color3.new(1,1,1)
-    p4.BackgroundColor3 = Color3.new(1,1,1)
-end)
-
+configTab:Button({
+    Title = "🔄 Liste aktualisieren",
+    Callback = function()
+        configDropdown:Refresh(getConfigs())
+        WindUI:Notify({
+            Title = "Aktualisiert",
+            Content = "Config-Liste wurde neu geladen.",
+            Duration = 2,
+            Icon = "refresh-cw"
+        })
+    end
+})
 
 local settingsTab = Window:Tab({
     Title = "Einstellungen",
