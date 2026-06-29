@@ -648,109 +648,6 @@ skins = Window:Tab({
     Icon = "droplets"
 })
 
-local APPLY_ALL = false
-local ENABLED = false
-local COLOR = Color3.fromRGB(255,255,255)
-
-local PART_SIZE = Vector3.new(4, 0.001, 13)
-local underglows = {}
-
-local function isLocalCar(car)
-	local plr = Players.LocalPlayer
-	if not plr then return false end
-	if car.Name:find(plr.Name) then return true end
-
-	local owner = car:FindFirstChild("Owner")
-	return owner and owner.Value == plr
-end
-
-RunService.RenderStepped:Connect(function()
-	for car,data in pairs(underglows) do
-		if data.body and data.part then
-			data.part.CFrame = data.body.CFrame * CFrame.new(0, -data.body.Size.Y + 2.5, 0)
-		end
-	end
-end)
-
-local function apply()
-	for car,data in pairs(underglows) do
-		if data.part then data.part:Destroy() end
-	end
-	underglows = {}
-
-	if not ENABLED then return end
-
-	local vehicles = workspace:FindFirstChild("Vehicles")
-	if not vehicles then return end
-
-	for _,car in ipairs(vehicles:GetChildren()) do
-		if APPLY_ALL or isLocalCar(car) then
-			local body = car:FindFirstChild("Body") and car.Body:FindFirstChild("Body")
-			if body and body:IsA("BasePart") then
-				local p = Instance.new("Part")
-				p.Size = PART_SIZE
-				p.Anchored = true
-				p.CanCollide = false
-				p.Transparency = 1
-                p.CFrame = body.CFrame * CFrame.new(0, -body.Size.Y - 0.05, 0)
-                p.Parent = workspace
-
-				local l = Instance.new("SurfaceLight")
-				l.Face = Enum.NormalId.Bottom
-				l.Angle = 180
-				l.Range = 8
-				l.Brightness = 4
-				l.Color = COLOR
-				l.Parent = p
-
-				underglows[car] = {part = p, body = body, light = l}
-			end
-		end
-	end
-end
-
-local vehicles = workspace:FindFirstChild("Vehicles")
-if vehicles then
-	vehicles.ChildAdded:Connect(apply)
-end
-
-skins:Toggle({
-	Title = "UNDERGLOW",
-    Desc = "might be buggy",
-	Default = false,
-    Flag = "underglow",
-	Callback = function(v)
-		ENABLED = v
-		apply()
-	end
-})
-
-skins:Toggle({
-	Title = "Apply to all",
-	Default = false,
-    Flag = "glowall",
-	Callback = function(v)
-		APPLY_ALL = v
-		apply()
-	end
-})
-
-skins:Colorpicker({
-	Title = "Underglow color",
-	Default = COLOR,
-    Flag = "underglowcolor",
-	Callback = function(v)
-		COLOR = v
-		for _,d in pairs(underglows) do
-			if d.light then
-				d.light.Color = v
-			end
-		end
-	end
-})
-
-skins:Divider()
-
 local skinlist = {"Default"}
 local sniperskin = "Default"
 local g36skin = "Default"
@@ -2063,4 +1960,244 @@ settingsTab:Toggle({
 Window:OnDestroy(function()
     if watermarkConn then watermarkConn:Disconnect() end
     if watermarkGui then watermarkGui:Destroy() end
+end)
+
+
+local autoTab = Window:Tab({
+    Title = "Auto",
+    Icon = "car"
+})
+
+-- === VARIABLEN ===
+local carColorEnabled = false
+local carColor = Color3.fromRGB(255, 255, 255)
+local carMatEnabled = false
+local carMaterial = Enum.Material.SmoothPlastic
+local customPlateEnabled = false
+local plateText = "INFINITY"
+local hornSound = "Default"
+
+local underglowEnabled = false
+local underglowAll = false
+local underglowColor = Color3.fromRGB(255, 0, 0)
+local underglowParts = {}
+
+-- Sounds für die Hupe
+local hornList = {
+    ["Default"] = "",
+    ["La Cucaracha"] = "rbxassetid://134764024",
+    ["Zug-Horn"] = "rbxassetid://4580219665",
+    ["Troll / Meme"] = "rbxassetid://6052562028",
+    ["Clown Tröte"] = "rbxassetid://663248386"
+}
+local hornNames = {"Default", "La Cucaracha", "Zug-Horn", "Troll / Meme", "Clown Tröte"}
+
+-- === HILFSFUNKTION (Findet dein Auto) ===
+local function getLocalCar()
+    local plr = Players.LocalPlayer
+    local vehicles = workspace:FindFirstChild("Vehicles")
+    if not vehicles then return nil end
+
+    for _, car in ipairs(vehicles:GetChildren()) do
+        local owner = car:FindFirstChild("Owner")
+        if (owner and owner.Value == plr) or car.Name:find(plr.Name) then
+            return car
+        end
+    end
+    return nil
+end
+
+-- === 1. BELEUCHTUNG (UNDERGLOW) ===
+autoTab:Divider({Text = "Beleuchtung"})
+
+local function applyUnderglow()
+    -- Altes aufräumen
+    for car, data in pairs(underglowParts) do
+        if data.part then data.part:Destroy() end
+    end
+    underglowParts = {}
+
+    if not underglowEnabled then return end
+    local vehicles = workspace:FindFirstChild("Vehicles")
+    if not vehicles then return end
+
+    for _, car in ipairs(vehicles:GetChildren()) do
+        local isMine = false
+        local owner = car:FindFirstChild("Owner")
+        if (owner and owner.Value == Players.LocalPlayer) or car.Name:find(Players.LocalPlayer.Name) then isMine = true end
+
+        if underglowAll or isMine then
+            local body = car:FindFirstChild("Body") and car.Body:FindFirstChild("Body")
+            if body and body:IsA("BasePart") then
+                local p = Instance.new("Part")
+                p.Size = Vector3.new(4, 0.001, 13)
+                p.Anchored = true
+                p.CanCollide = false
+                p.Transparency = 1
+                p.CFrame = body.CFrame * CFrame.new(0, -body.Size.Y - 0.05, 0)
+                p.Parent = workspace
+
+                local l = Instance.new("SurfaceLight")
+                l.Face = Enum.NormalId.Bottom
+                l.Angle = 180
+                l.Range = 8
+                l.Brightness = 4
+                l.Color = underglowColor
+                l.Parent = p
+
+                underglowParts[car] = {part = p, body = body, light = l}
+            end
+        end
+    end
+end
+
+autoTab:Toggle({
+    Title = "Underglow an/aus",
+    Desc = "Aktiviert die Unterbodenbeleuchtung",
+    Flag = "ug_enable",
+    Callback = function(state)
+        underglowEnabled = state
+        applyUnderglow()
+    end
+})
+
+autoTab:Toggle({
+    Title = "Für alle Autos",
+    Desc = "Zeigt Underglow bei jedem Spieler",
+    Flag = "ug_all",
+    Callback = function(state)
+        underglowAll = state
+        applyUnderglow()
+    end
+})
+
+autoTab:Colorpicker({
+    Title = "Underglow Farbe",
+    Default = underglowColor,
+    Callback = function(color)
+        underglowColor = color
+        for _, data in pairs(underglowParts) do
+            if data.light then data.light.Color = color end
+        end
+    end
+})
+
+RunService.RenderStepped:Connect(function()
+    for car, data in pairs(underglowParts) do
+        if data.body and data.part then
+            data.part.CFrame = data.body.CFrame * CFrame.new(0, -data.body.Size.Y + 2.5, 0)
+        end
+    end
+end)
+
+local vehFolder = workspace:FindFirstChild("Vehicles")
+if vehFolder then vehFolder.ChildAdded:Connect(applyUnderglow) end
+
+
+-- === 2. LACKIERUNG & OPTIK ===
+autoTab:Divider({Text = "Lackierung & Optik"})
+
+autoTab:Toggle({
+    Title = "Eigene Auto-Farbe",
+    Desc = "Überschreibt die Farbe deines Autos",
+    Flag = "car_color_enable",
+    Callback = function(state) carColorEnabled = state end
+})
+
+autoTab:Colorpicker({
+    Title = "Farbe wählen",
+    Default = carColor,
+    Callback = function(color) carColor = color end
+})
+
+autoTab:Toggle({
+    Title = "Eigenes Material",
+    Desc = "Z.B. leuchtend (Neon) oder Plastik",
+    Flag = "car_mat_enable",
+    Callback = function(state) carMatEnabled = state end
+})
+
+autoTab:Dropdown({
+    Title = "Material wählen",
+    Values = {"SmoothPlastic", "Neon", "ForceField", "Glass", "Foil"},
+    Multi = false,
+    AllowNone = false,
+    Value = "SmoothPlastic",
+    Callback = function(val)
+        if val == "SmoothPlastic" then carMaterial = Enum.Material.SmoothPlastic
+        elseif val == "Neon" then carMaterial = Enum.Material.Neon
+        elseif val == "ForceField" then carMaterial = Enum.Material.ForceField
+        elseif val == "Glass" then carMaterial = Enum.Material.Glass
+        elseif val == "Foil" then carMaterial = Enum.Material.Foil end
+    end
+})
+
+
+-- === 3. EXTRAS (HUPE & SCHILD) ===
+autoTab:Divider({Text = "Extras"})
+
+autoTab:Dropdown({
+    Title = "Custom Hupe",
+    Desc = "Ändert den Sound deiner Hupe",
+    Values = hornNames,
+    Multi = false,
+    AllowNone = false,
+    Value = "Default",
+    Callback = function(val) hornSound = val end
+})
+
+autoTab:Toggle({
+    Title = "Custom Nummernschild",
+    Desc = "Ändert den Text deines Schildes (nur für dich)",
+    Flag = "car_plate_enable",
+    Callback = function(state) customPlateEnabled = state end
+})
+
+autoTab:Input({
+    Title = "Nummernschild Text",
+    Placeholder = "INFINITY",
+    Callback = function(text)
+        if text ~= "" then plateText = text end
+    end
+})
+
+
+-- === UPDATE LOOP FÜR AUTO-MODS ===
+-- Updated das Auto automatisch jede Sekunde (besser für Performance als jeden Frame)
+task.spawn(function()
+    while task.wait(1) do
+        pcall(function()
+            local myCar = getLocalCar()
+            if not myCar then return end
+
+            -- Farbe & Material anwenden
+            if carColorEnabled or carMatEnabled then
+                for _, part in ipairs(myCar:GetDescendants()) do
+                    if part:IsA("BasePart") and (part.Name:find("Body") or part.Name:find("Chassis") or part.Name:find("Door")) then
+                        if carColorEnabled then part.Color = carColor end
+                        if carMatEnabled then part.Material = carMaterial end
+                    end
+                end
+            end
+
+            -- Hupe anwenden
+            if hornSound ~= "Default" then
+                for _, sound in ipairs(myCar:GetDescendants()) do
+                    if sound:IsA("Sound") and (sound.Name:find("Horn") or sound.Name:find("Honk")) then
+                        sound.SoundId = hornList[hornSound]
+                    end
+                end
+            end
+
+            -- Nummernschild anwenden
+            if customPlateEnabled then
+                for _, textLabel in ipairs(myCar:GetDescendants()) do
+                    if textLabel:IsA("TextLabel") and textLabel.Parent and textLabel.Parent.Name:find("Plate") then
+                        textLabel.Text = plateText
+                    end
+                end
+            end
+
+        end)
+    end
 end)
