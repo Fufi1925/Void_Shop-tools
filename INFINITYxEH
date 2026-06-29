@@ -457,7 +457,7 @@ enviorment:Toggle({
 
 Skyselector = enviorment:Dropdown({
     Title = "Skys",
-    Desc = "Unsere costum Himmels",
+    Desc = "Unsere Costum Himmels",
     Values = skylist,
     Multi = false,
     AllowNone = true,
@@ -1191,7 +1191,7 @@ skins:Button({
 })
 
 crosshair = Window:Tab({
-    Title = "Crosshair",
+    Title = "Crosshair (down)",
     Icon = "crosshair"
 })
 
@@ -1401,7 +1401,7 @@ for name, id in pairs(sounds) do
 end
 
 misc = Window:Tab({
-    Title = "Misc",
+    Title = "Sniper",
     Icon = "tool-case",
 })
 
