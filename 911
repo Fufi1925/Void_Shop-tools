@@ -1092,20 +1092,22 @@ local crosshairTab = Window:Tab({
     Icon = "crosshair"
 })
 
--- === CROSSHAIR VARIABLEN ===
+-- === VARIABLEN ===
 local chEnabled = false
 local chHideOriginal = false
-local chCenterLocked = true -- Standardmäßig in der Mitte fixiert
+local chCenterLocked = true 
 local chColor = Color3.fromRGB(255, 255, 255)
 local chThickness = 2
 local chLength = 12
 local chGap = 4
 local chDot = false
+local chTShape = false -- NEU: T-Form
+local chDynamic = false -- NEU: Geht beim Laufen auseinander
 local chSpin = false
 local chSpinSpeed = 100
 local chRGB = false
 
--- === ZEICHNUNGS-OBJEKTE (Drawing API) ===
+-- === ZEICHNUNGS-OBJEKTE ===
 local UserInputService = game:GetService("UserInputService")
 local Camera = workspace.CurrentCamera
 
@@ -1130,109 +1132,113 @@ chCenterDot.Transparency = 1
 
 local currentRotation = 0
 
--- === UI ELEMENTE ===
+-- ==========================================
+-- ⚙️ ALLGEMEIN
+-- ==========================================
 crosshairTab:Toggle({
     Title = "Custom Crosshair",
-    Desc = "Aktiviert dein eigenes Fadenkreuz",
     Flag = "ch_enable",
-    Callback = function(state)
-        chEnabled = state
-    end
+    Callback = function(state) chEnabled = state end
 })
 
 crosshairTab:Toggle({
-    Title = "Original Fadenkreuz verstecken",
-    Desc = "Blendet das Standard-Fadenkreuz vom Spiel aus",
+    Title = "Original Ausblenden",
+    Desc = "Versteckt das Spiel-Fadenkreuz",
     Flag = "ch_hide",
-    Callback = function(state)
-        chHideOriginal = state
-    end
+    Callback = function(state) chHideOriginal = state end
 })
 
 crosshairTab:Toggle({
-    Title = "In Bildschirmmitte fixieren",
-    Desc = "AN = Immer in der Mitte / AUS = Folgt der Maus",
+    Title = "In Bildschirmmitte Fixieren",
     Default = true, 
     Flag = "ch_center",
-    Callback = function(state)
-        chCenterLocked = state
-    end
+    Callback = function(state) chCenterLocked = state end
 })
 
-crosshairTab:Toggle({
-    Title = "Center Dot",
-    Desc = "Fügt einen Punkt in der Mitte hinzu",
-    Flag = "ch_dot",
-    Callback = function(state)
-        chDot = state
-    end
-})
-
-crosshairTab:Toggle({
-    Title = "Rainbow Mode (RGB)",
-    Desc = "Das Fadenkreuz wechselt in Regenbogenfarben",
-    Flag = "ch_rgb",
-    Callback = function(state)
-        chRGB = state
-    end
-})
-
-crosshairTab:Toggle({
-    Title = "Spinning (Rotieren)",
-    Desc = "Lässt das Fadenkreuz drehen",
-    Flag = "ch_spin",
-    Callback = function(state)
-        chSpin = state
-    end
-})
+-- ==========================================
+-- 🎨 OPTIK & FORM
+-- ==========================================
+crosshairTab:Divider({Text = "Optik & Form"})
 
 crosshairTab:Colorpicker({
-    Title = "Crosshair Farbe",
+    Title = "Farbe",
     Default = chColor,
-    Callback = function(color)
-        chColor = color
-    end
+    Callback = function(color) chColor = color end
 })
 
+crosshairTab:Toggle({
+    Title = "Regenbogen (RGB)",
+    Flag = "ch_rgb",
+    Callback = function(state) chRGB = state end
+})
+
+crosshairTab:Toggle({
+    Title = "Punkt in der Mitte",
+    Flag = "ch_dot",
+    Callback = function(state) chDot = state end
+})
+
+crosshairTab:Toggle({
+    Title = "T-Shape (Oben Offen)",
+    Desc = "Entfernt die obere Linie",
+    Flag = "ch_tshape",
+    Callback = function(state) chTShape = state end
+})
+
+-- ==========================================
+-- 📏 ABMESSUNGEN
+-- ==========================================
+crosshairTab:Divider({Text = "Größe"})
+
 crosshairTab:Slider({
-    Title = "Dicke (Thickness)",
+    Title = "Dicke",
     Step = 1,
     Value = {Min = 1, Max = 10, Default = 2},
-    Callback = function(value)
-        chThickness = value
-    end
+    Callback = function(v) chThickness = v end
 })
 
 crosshairTab:Slider({
-    Title = "Länge (Length)",
+    Title = "Länge",
     Step = 1,
     Value = {Min = 1, Max = 50, Default = 12},
-    Callback = function(value)
-        chLength = value
-    end
+    Callback = function(v) chLength = v end
 })
 
 crosshairTab:Slider({
     Title = "Abstand (Gap)",
     Step = 1,
     Value = {Min = 0, Max = 30, Default = 4},
-    Callback = function(value)
-        chGap = value
-    end
+    Callback = function(v) chGap = v end
+})
+
+crosshairTab:Toggle({
+    Title = "Dynamischer Abstand",
+    Desc = "Reagiert auf Bewegungen des Spielers",
+    Flag = "ch_dyn",
+    Callback = function(state) chDynamic = state end
+})
+
+-- ==========================================
+-- 🔄 ANIMATION
+-- ==========================================
+crosshairTab:Divider({Text = "Animation"})
+
+crosshairTab:Toggle({
+    Title = "Rotieren",
+    Flag = "ch_spin",
+    Callback = function(state) chSpin = state end
 })
 
 crosshairTab:Slider({
-    Title = "Rotations-Geschwindigkeit",
+    Title = "Dreh-Geschwindigkeit",
     Step = 10,
     Value = {Min = 10, Max = 500, Default = 100},
-    Callback = function(value)
-        chSpinSpeed = value
-    end
+    Callback = function(v) chSpinSpeed = v end
 })
 
 -- === RENDER LOOP ===
 local crosshairConnection = RunService.RenderStepped:Connect(function(dt)
-    -- Originales Fadenkreuz ausblenden
+    -- Originales ausblenden
     pcall(function()
         local plrGui = localPlayer:FindFirstChild("PlayerGui")
         if plrGui then
@@ -1248,28 +1254,37 @@ local crosshairConnection = RunService.RenderStepped:Connect(function(dt)
         end
     end)
 
-    -- Wenn deaktiviert, alles unsichtbar machen
     if not chEnabled then
         for _, line in pairs(chLines) do line.Visible = false end
         chCenterDot.Visible = false
         return
     end
 
-    -- Position berechnen (Mitte oder Maus)
+    -- Position
     local targetPos
     if chCenterLocked then
-        -- Bildschirmmitte
         local viewport = Camera.ViewportSize
-        targetPos = Vector2.new(viewport.X / 2, (viewport.Y / 2) + 18) -- +18 gleicht die Roblox Topbar aus
+        targetPos = Vector2.new(viewport.X / 2, (viewport.Y / 2) + 18) 
     else
-        -- Mausposition
         targetPos = UserInputService:GetMouseLocation()
     end
 
-    -- Farbe berechnen
+    -- Farbe
     local activeColor = chRGB and Color3.fromHSV(tick() % 5 / 5, 1, 1) or chColor
 
-    -- Rotation berechnen
+    -- Dynamischer Abstand (Laufen)
+    local activeGap = chGap
+    if chDynamic then
+        pcall(function()
+            local char = Players.LocalPlayer.Character
+            if char and char:FindFirstChild("HumanoidRootPart") then
+                local speed = char.HumanoidRootPart.Velocity.Magnitude
+                activeGap = activeGap + (speed / 3) -- Vergrößert Gap basierend auf Speed
+            end
+        end)
+    end
+
+    -- Rotation
     if chSpin then
         currentRotation = currentRotation + (chSpinSpeed * dt)
         if currentRotation >= 360 then currentRotation = currentRotation - 360 end
@@ -1288,27 +1303,33 @@ local crosshairConnection = RunService.RenderStepped:Connect(function(dt)
         )
     end
 
-    -- Linien Positionen anwenden
-    chLines.Top.From = rotatePoint(0, -chGap)
-    chLines.Top.To = rotatePoint(0, -(chGap + chLength))
+    -- Positionen berechnen
+    chLines.Top.From = rotatePoint(0, -activeGap)
+    chLines.Top.To = rotatePoint(0, -(activeGap + chLength))
     
-    chLines.Bottom.From = rotatePoint(0, chGap)
-    chLines.Bottom.To = rotatePoint(0, chGap + chLength)
+    chLines.Bottom.From = rotatePoint(0, activeGap)
+    chLines.Bottom.To = rotatePoint(0, activeGap + chLength)
     
-    chLines.Left.From = rotatePoint(-chGap, 0)
-    chLines.Left.To = rotatePoint(-(chGap + chLength), 0)
+    chLines.Left.From = rotatePoint(-activeGap, 0)
+    chLines.Left.To = rotatePoint(-(activeGap + chLength), 0)
     
-    chLines.Right.From = rotatePoint(chGap, 0)
-    chLines.Right.To = rotatePoint(chGap + chLength, 0)
+    chLines.Right.From = rotatePoint(activeGap, 0)
+    chLines.Right.To = rotatePoint(activeGap + chLength, 0)
 
-    -- Eigenschaften anwenden und sichtbar machen
-    for _, line in pairs(chLines) do
+    -- Anwenden
+    for name, line in pairs(chLines) do
         line.Color = activeColor
         line.Thickness = chThickness
-        line.Visible = true
+        
+        -- T-Shape Logik (Obere Linie verstecken)
+        if chTShape and name == "Top" then
+            line.Visible = false
+        else
+            line.Visible = true
+        end
     end
 
-    -- Punkt in der Mitte
+    -- Center Dot
     if chDot then
         chCenterDot.Position = targetPos
         chCenterDot.Radius = chThickness
@@ -1319,12 +1340,13 @@ local crosshairConnection = RunService.RenderStepped:Connect(function(dt)
     end
 end)
 
--- === CLEANUP BEIM SCHLIESSEN DES SCRIPTS ===
+-- === CLEANUP ===
 Window:OnDestroy(function()
     if crosshairConnection then crosshairConnection:Disconnect() end
     for _, line in pairs(chLines) do line:Remove() end
     if chCenterDot then chCenterDot:Remove() end
 end)
+
 
 soundtab = Window:Tab({
     Title = "Sounds",
