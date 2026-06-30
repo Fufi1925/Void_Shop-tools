@@ -1688,15 +1688,15 @@ local wmConfig = {
     ShowFPS = true,
     ShowPing = true,
     ShowTime = false,
-    ShowHP = true, -- NEU: HP Anzeige
+    ShowHP = true, 
     ShowPlaytime = false, 
     ShowServer = false, 
     
     -- EH Spezifisch
     ShowInfo = false, 
-    ShowCops = true, -- NEU: Cop Radar
-    ShowProfit = true, -- NEU: Geld Tracker
-    ShowVehicle = true, -- NEU: Auto Modus (Extra UI)
+    ShowCops = true, 
+    ShowProfit = true, 
+    ShowVehicle = true, 
     
     -- Effekte & Verhalten
     UseIcons = false,
@@ -1731,7 +1731,6 @@ local function saveWmConfig()
     end)
 end
 
--- EH Geld Funktion
 local function getMoney()
     local money = 0
     pcall(function()
@@ -1755,7 +1754,7 @@ pcall(function() wmGui.Parent = (gethui and gethui()) or game:GetService("CoreGu
 local wmFrame = Instance.new("Frame", wmGui)
 wmFrame.Visible = false 
 wmFrame.Active = true
-wmFrame.BackgroundTransparency = 1 -- Für Fade-In
+wmFrame.BackgroundTransparency = 1 
 wmFrame.ClipsDescendants = false
 
 local wmCorner = Instance.new("UICorner", wmFrame)
@@ -1770,11 +1769,11 @@ wmText.BackgroundTransparency = 1
 wmText.RichText = true
 wmText.TextXAlignment = Enum.TextXAlignment.Left
 wmText.TextSize = 13
-wmText.TextTransparency = 1 -- Für Fade-In
+wmText.TextTransparency = 1 
 
 -- Auto-Modus UI (Unter dem Watermark)
 local vehFrame = Instance.new("Frame", wmFrame)
-vehFrame.Size = UDim2.new(1, 0, 0, 0) -- Startet bei 0 (eingeklappt)
+vehFrame.Size = UDim2.new(1, 0, 0, 0) 
 vehFrame.Position = UDim2.new(0, 0, 1, 2)
 vehFrame.BackgroundTransparency = 0.2
 vehFrame.BackgroundColor3 = Color3.fromRGB(15, 15, 15)
@@ -1788,71 +1787,29 @@ vehText.BackgroundTransparency = 1
 vehText.RichText = true
 vehText.TextColor3 = Color3.fromRGB(200, 200, 200)
 vehText.TextSize = 12
-vehText.Font = Enum.Font.Code
-
--- Quick Menu UI (Clickable)
-local menuFrame = Instance.new("Frame", wmFrame)
-menuFrame.Size = UDim2.new(0, 150, 0, 0)
-menuFrame.Position = UDim2.new(0, 0, 1, 5)
-menuFrame.BackgroundColor3 = Color3.fromRGB(20, 20, 20)
-menuFrame.ClipsDescendants = true
-menuFrame.Visible = false
-Instance.new("UICorner", menuFrame).CornerRadius = UDim.new(0, 4)
-Instance.new("UIStroke", menuFrame).Color = Color3.fromRGB(50, 50, 50)
-
-local function createMenuButton(text, flagName, yPos)
-    local btn = Instance.new("TextButton", menuFrame)
-    btn.Size = UDim2.new(1, 0, 0, 25)
-    btn.Position = UDim2.new(0, 0, 0, yPos)
-    btn.BackgroundTransparency = 1
-    btn.Text = " " .. text
-    btn.TextColor3 = Color3.fromRGB(255, 255, 255)
-    btn.Font = Enum.Font.Code
-    btn.TextSize = 12
-    btn.TextXAlignment = Enum.TextXAlignment.Left
-    
-    btn.MouseButton1Click:Connect(function()
-        -- Verbindet sich mit dem WindUI Toggle System!
-        pcall(function()
-            local toggle = Window:GetToggle(flagName)
-            if toggle then toggle:Set(not toggle.Value) end
-        end)
-    end)
-end
-
-createMenuButton("🎯 Toggle Crosshair", "ch_enable", 0)
-createMenuButton("💡 Toggle Underglow", "ug_enable", 25)
 
 local fonts = {
     ["Code"] = Enum.Font.Code, ["Gotham"] = Enum.Font.GothamMedium,
     ["Sci-Fi"] = Enum.Font.Jura, ["Arcade"] = Enum.Font.Arcade, ["Classic"] = Enum.Font.SourceSansBold
 }
 
--- DRAGGABLE & CLICK LOGIK (Unterscheidet zwischen Ziehen und Klicken)
+-- DRAGGABLE LOGIK
 local dragging, dragInput, dragStart, startPos
-local isMenuOpen = false
-local mouseMovedDist = 0
 
 wmFrame.InputBegan:Connect(function(input)
-    if input.UserInputType == Enum.UserInputType.MouseButton1 then
-        dragging = not wmConfig.AutoPosition
+    if input.UserInputType == Enum.UserInputType.MouseButton1 and not wmConfig.AutoPosition then
+        dragging = true
         dragStart = input.Position
         startPos = wmFrame.Position
-        mouseMovedDist = 0
     end
 end)
 
 wmFrame.InputChanged:Connect(function(input)
-    if input.UserInputType == Enum.UserInputType.MouseMovement then 
-        dragInput = input 
-        if dragStart then
-            mouseMovedDist = (input.Position - dragStart).Magnitude
-        end
-    end
+    if input.UserInputType == Enum.UserInputType.MouseMovement then dragInput = input end
 end)
 
 UserInputService.InputChanged:Connect(function(input)
-    if input == dragInput and dragging and mouseMovedDist > 5 then
+    if input == dragInput and dragging then
         local delta = input.Position - dragStart
         wmFrame.Position = UDim2.new(0, startPos.X.Offset + delta.X, 0, startPos.Y.Offset + delta.Y)
     end
@@ -1861,12 +1818,6 @@ end)
 UserInputService.InputEnded:Connect(function(input)
     if input.UserInputType == Enum.UserInputType.MouseButton1 then
         dragging = false
-        -- Wenn Maus kaum bewegt wurde -> Es war ein Klick! Menü öffnen!
-        if mouseMovedDist < 5 then
-            isMenuOpen = not isMenuOpen
-            menuFrame.Visible = true
-            TweenService:Create(menuFrame, TweenInfo.new(0.2), {Size = UDim2.new(0, 150, 0, isMenuOpen and 50 or 0)}):Play()
-        end
         if not wmConfig.AutoPosition then
             wmConfig.PosX = wmFrame.Position.X.Offset
             wmConfig.PosY = wmFrame.Position.Y.Offset
@@ -1910,7 +1861,7 @@ local function applyStyle()
         wmText.TextStrokeTransparency = 0.5
     end
     
-    if wmConfig.ShowVehicle then wmConfig.AutoPosition = true end -- Auto-Pos erzwingen bei Vehicle Mode
+    if wmConfig.ShowVehicle then wmConfig.AutoPosition = true end
 end
 
 local function formatTime(sec) return string.format("%02d:%02d", math.floor(sec/60), math.floor(sec%60)) end
@@ -1923,7 +1874,6 @@ local isVehOpen = false
 RunService.RenderStepped:Connect(function()
     if not wmConfig.Enabled then wmFrame.Visible = false return end
 
-    -- Initial Money Setup
     if not initialMoneySet and getMoney() > 0 then
         initialMoney = getMoney()
         initialMoneySet = true
@@ -1976,7 +1926,7 @@ RunService.RenderStepped:Connect(function()
         wmFrame.Position = UDim2.new(0, wmConfig.PosX, 0, wmConfig.PosY)
     end
 
-    -- Farben Logik (RGB, Health Warning, FPS Orange)
+    -- Farben & Health Warning
     local isLowHealth = false
     local currentHp = 100
     pcall(function()
@@ -2012,7 +1962,7 @@ RunService.RenderStepped:Connect(function()
     local txt = (wmConfig.UseIcons and "👑 " or "") .. string.format('<font color="%s">INFINITY</font> | ', cHex)
 
     if wmConfig.ShowFPS then 
-        local fColor = realFps < 30 and "#f97316" or "#ffffff" -- Orange if < 30
+        local fColor = realFps < 30 and "#f97316" or "#ffffff" 
         txt = txt .. string.format('%s<font color="%s">%d</font> | ', (wmConfig.UseIcons and "🚀 " or "FPS: "), fColor, realFps)
     end
     
@@ -2060,21 +2010,35 @@ RunService.RenderStepped:Connect(function()
     wmFrame.Size = UDim2.new(0, wmText.TextBounds.X + 20, 0, 22)
     vehFrame.Size = UDim2.new(0, wmFrame.Size.X.Offset, 0, isVehOpen and 22 or 0)
 
-    -- VEHICLE MODE LOGIK
+    -- VEHICLE MODE LOGIK (Fix & Fallback)
     if wmConfig.ShowVehicle then
         local inCar = false
         local speed, fuel, health = 0, "100%", "100%"
         
         pcall(function()
-            local seat = Players.LocalPlayer.Character.Humanoid.SeatPart
-            if seat and seat:IsA("VehicleSeat") then
-                inCar = true
-                speed = math.floor(seat.AssemblyLinearVelocity.Magnitude * 1.09) -- In KM/H
+            local char = Players.LocalPlayer.Character
+            local hum = char and char:FindFirstChild("Humanoid")
+            local hrp = char and char:FindFirstChild("HumanoidRootPart")
+            
+            if hum and hrp then
+                speed = math.floor(hrp.Velocity.Magnitude * 1.09) -- KM/H
                 
-                -- EH spezifische Attribute suchen (Fallback 100%)
-                local carModel = seat.Parent
-                if carModel:GetAttribute("Fuel") then fuel = math.floor(carModel:GetAttribute("Fuel")) .. "%" end
-                if carModel:GetAttribute("Health") then health = math.floor(carModel:GetAttribute("Health")) .. "%" end
+                -- Check 1: Normaler Sitz
+                if hum.SeatPart then
+                    inCar = true
+                -- Check 2: Fallback (> 20 km/h und nicht am fallen/springen)
+                elseif speed >= 20 and hum:GetState() ~= Enum.HumanoidStateType.Freefall and hum:GetState() ~= Enum.HumanoidStateType.Jumping then
+                    inCar = true
+                end
+
+                -- Auto-Daten auslesen (falls möglich)
+                if inCar and hum.SeatPart then
+                    local carModel = hum.SeatPart:FindFirstAncestorOfClass("Model")
+                    if carModel then
+                        if carModel:GetAttribute("Fuel") then fuel = math.floor(carModel:GetAttribute("Fuel")) .. "%" end
+                        if carModel:GetAttribute("Health") then health = math.floor(carModel:GetAttribute("Health")) .. "%" end
+                    end
+                end
             end
         end)
 
@@ -2101,11 +2065,24 @@ RunService.RenderStepped:Connect(function()
     end
 end)
 
+-- Hover Expand Logik
+wmFrame.MouseEnter:Connect(function()
+    if wmConfig.HoverExpand then
+        TweenService:Create(wmFrame, TweenInfo.new(0.3), {Size = UDim2.new(0, wmText.TextBounds.X + 20, 0, 22)}):Play()
+        TweenService:Create(wmText, TweenInfo.new(0.3), {TextTransparency = 0}):Play()
+    end
+end)
+wmFrame.MouseLeave:Connect(function()
+    if wmConfig.HoverExpand then
+        TweenService:Create(wmFrame, TweenInfo.new(0.3), {Size = UDim2.new(0, 30, 0, 22)}):Play()
+        TweenService:Create(wmText, TweenInfo.new(0.3), {TextTransparency = 1}):Play()
+    end
+end)
 
 -- ==========================================
 -- ⚙️ WIND UI MENÜ
 -- ==========================================
-watermarkTab:Paragraph({Title = "🎨 Design", Desc = "Klicke auf das Watermark für ein Quick-Menü!"})
+watermarkTab:Paragraph({Title = "🎨 Design", Desc = "Stelle das Aussehen deines Watermarks ein."})
 
 watermarkTab:Dropdown({
     Title = "Style auswählen",
@@ -2151,6 +2128,7 @@ watermarkTab:Toggle({Title = "Warnung bei wenig HP (Rotes Blinken)", Value = wmC
 watermarkTab:Toggle({Title = "RGB Text", Value = wmConfig.RGBText, Callback = function(s) wmConfig.RGBText = s; saveWmConfig() end})
 watermarkTab:Toggle({Title = "RGB Rahmen", Value = wmConfig.RGBLine, Callback = function(s) wmConfig.RGBLine = s; applyStyle(); saveWmConfig() end})
 watermarkTab:Toggle({Title = "Pulsieren (Breathing)", Value = wmConfig.Breathing, Callback = function(s) wmConfig.Breathing = s; applyStyle(); saveWmConfig() end})
+watermarkTab:Toggle({Title = "Ausklappen bei Hover", Value = wmConfig.HoverExpand, Callback = function(s) wmConfig.HoverExpand = s; applyStyle(); saveWmConfig() end})
 watermarkTab:Toggle({Title = "Verstecken beim Snipen", Value = wmConfig.HideScope, Callback = function(s) wmConfig.HideScope = s; saveWmConfig() end})
 
 -- === 6. STARTUP ANIMATION ===
@@ -2160,7 +2138,6 @@ task.spawn(function()
     if not wmConfig.Enabled then return end
     wmFrame.Visible = true
     
-    -- Smooth Fade-In Animation
     TweenService:Create(wmFrame, TweenInfo.new(1.5, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {BackgroundTransparency = wmConfig.Style == "Minimalist" and 1 or 0.2}):Play()
     TweenService:Create(wmText, TweenInfo.new(1.5, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {TextTransparency = 0}):Play()
     
