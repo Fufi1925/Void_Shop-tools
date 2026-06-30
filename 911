@@ -1672,9 +1672,11 @@ local Lighting = game:GetService("Lighting")
 local Players = game:GetService("Players")
 local Camera = workspace.CurrentCamera
 
--- === 1. CONFIG SYSTEM (Auto Save/Load) ===
+-- === 1. CONFIG & DATEN SYSTEM ===
 local wmConfigFile = "INFINITYxEH/watermark.json"
 local sessionStartTick = tick()
+local initialMoney = 0
+local initialMoneySet = false
 
 local wmConfig = {
     Enabled = true,
@@ -1682,22 +1684,26 @@ local wmConfig = {
     Font = "Code", 
     AccentColor = Color3.fromRGB(220, 38, 38), 
     
-    -- Anzeigen
+    -- Anzeigen Allgemein
     ShowFPS = true,
     ShowPing = true,
-    ShowSpeed = false,
     ShowTime = false,
-    ShowInfo = false, 
+    ShowHP = true, -- NEU: HP Anzeige
     ShowPlaytime = false, 
-    ShowServer = false, -- NEU: Spieler auf dem Server
+    ShowServer = false, 
+    
+    -- EH Spezifisch
+    ShowInfo = false, 
+    ShowCops = true, -- NEU: Cop Radar
+    ShowProfit = true, -- NEU: Geld Tracker
+    ShowVehicle = true, -- NEU: Auto Modus (Extra UI)
     
     -- Effekte & Verhalten
     UseIcons = false,
     RGBLine = false,
     RGBText = false, 
     Breathing = false,
-    HealthWarning = true, -- NEU: Rotes Blinken bei wenig HP
-    HoverExpand = false,
+    HealthWarning = true, 
     HideScope = true,
     AutoPosition = true, 
     PosX = 15,
@@ -1708,11 +1714,8 @@ pcall(function()
     if isfile(wmConfigFile) then
         local decoded = HttpService:JSONDecode(readfile(wmConfigFile))
         for k, v in pairs(decoded) do
-            if k == "AccentColor" then
-                wmConfig[k] = Color3.new(v.R, v.G, v.B)
-            else
-                wmConfig[k] = v
-            end
+            if k == "AccentColor" then wmConfig[k] = Color3.new(v.R, v.G, v.B)
+            else wmConfig[k] = v end
         end
     end
 end)
@@ -1721,75 +1724,149 @@ local function saveWmConfig()
     pcall(function()
         local toSave = {}
         for k, v in pairs(wmConfig) do
-            if typeof(v) == "Color3" then
-                toSave[k] = {R = v.R, G = v.G, B = v.B}
-            else
-                toSave[k] = v
-            end
+            if typeof(v) == "Color3" then toSave[k] = {R = v.R, G = v.G, B = v.B}
+            else toSave[k] = v end
         end
         writefile(wmConfigFile, HttpService:JSONEncode(toSave))
     end)
+end
+
+-- EH Geld Funktion
+local function getMoney()
+    local money = 0
+    pcall(function()
+        local ls = Players.LocalPlayer:FindFirstChild("leaderstats")
+        if ls then
+            if ls:FindFirstChild("Cash") then money = ls.Cash.Value
+            elseif ls:FindFirstChild("Money") then money = ls.Money.Value end
+        end
+    end)
+    return money
 end
 
 -- === 2. UI ERSTELLUNG ===
 local wmGui = Instance.new("ScreenGui")
 wmGui.Name = "InfinityWatermark"
 wmGui.IgnoreGuiInset = true
+wmGui.ZIndexBehavior = Enum.ZIndexBehavior.Sibling
 pcall(function() wmGui.Parent = (gethui and gethui()) or game:GetService("CoreGui") end)
 
-local wmFrame = Instance.new("Frame")
-wmFrame.Parent = wmGui
+-- Haupt-Watermark
+local wmFrame = Instance.new("Frame", wmGui)
 wmFrame.Visible = false 
 wmFrame.Active = true
+wmFrame.BackgroundTransparency = 1 -- Für Fade-In
+wmFrame.ClipsDescendants = false
 
-local wmCorner = Instance.new("UICorner")
-wmCorner.Parent = wmFrame
-
-local wmStroke = Instance.new("UIStroke")
-wmStroke.Parent = wmFrame
-
-local wmTopLine = Instance.new("Frame")
+local wmCorner = Instance.new("UICorner", wmFrame)
+local wmStroke = Instance.new("UIStroke", wmFrame)
+local wmTopLine = Instance.new("Frame", wmFrame)
 wmTopLine.BorderSizePixel = 0
-wmTopLine.Parent = wmFrame
 
-local wmText = Instance.new("TextLabel")
+local wmText = Instance.new("TextLabel", wmFrame)
 wmText.Size = UDim2.new(1, -10, 1, 0)
 wmText.Position = UDim2.new(0, 5, 0, 0)
 wmText.BackgroundTransparency = 1
 wmText.RichText = true
 wmText.TextXAlignment = Enum.TextXAlignment.Left
 wmText.TextSize = 13
-wmText.Parent = wmFrame
+wmText.TextTransparency = 1 -- Für Fade-In
+
+-- Auto-Modus UI (Unter dem Watermark)
+local vehFrame = Instance.new("Frame", wmFrame)
+vehFrame.Size = UDim2.new(1, 0, 0, 0) -- Startet bei 0 (eingeklappt)
+vehFrame.Position = UDim2.new(0, 0, 1, 2)
+vehFrame.BackgroundTransparency = 0.2
+vehFrame.BackgroundColor3 = Color3.fromRGB(15, 15, 15)
+vehFrame.ClipsDescendants = true
+local vehCorner = Instance.new("UICorner", vehFrame)
+vehCorner.CornerRadius = UDim.new(0, 4)
+local vehText = Instance.new("TextLabel", vehFrame)
+vehText.Size = UDim2.new(1, -10, 1, 0)
+vehText.Position = UDim2.new(0, 5, 0, 0)
+vehText.BackgroundTransparency = 1
+vehText.RichText = true
+vehText.TextColor3 = Color3.fromRGB(200, 200, 200)
+vehText.TextSize = 12
+vehText.Font = Enum.Font.Code
+
+-- Quick Menu UI (Clickable)
+local menuFrame = Instance.new("Frame", wmFrame)
+menuFrame.Size = UDim2.new(0, 150, 0, 0)
+menuFrame.Position = UDim2.new(0, 0, 1, 5)
+menuFrame.BackgroundColor3 = Color3.fromRGB(20, 20, 20)
+menuFrame.ClipsDescendants = true
+menuFrame.Visible = false
+Instance.new("UICorner", menuFrame).CornerRadius = UDim.new(0, 4)
+Instance.new("UIStroke", menuFrame).Color = Color3.fromRGB(50, 50, 50)
+
+local function createMenuButton(text, flagName, yPos)
+    local btn = Instance.new("TextButton", menuFrame)
+    btn.Size = UDim2.new(1, 0, 0, 25)
+    btn.Position = UDim2.new(0, 0, 0, yPos)
+    btn.BackgroundTransparency = 1
+    btn.Text = " " .. text
+    btn.TextColor3 = Color3.fromRGB(255, 255, 255)
+    btn.Font = Enum.Font.Code
+    btn.TextSize = 12
+    btn.TextXAlignment = Enum.TextXAlignment.Left
+    
+    btn.MouseButton1Click:Connect(function()
+        -- Verbindet sich mit dem WindUI Toggle System!
+        pcall(function()
+            local toggle = Window:GetToggle(flagName)
+            if toggle then toggle:Set(not toggle.Value) end
+        end)
+    end)
+end
+
+createMenuButton("🎯 Toggle Crosshair", "ch_enable", 0)
+createMenuButton("💡 Toggle Underglow", "ug_enable", 25)
 
 local fonts = {
-    ["Code"] = Enum.Font.Code,
-    ["Gotham"] = Enum.Font.GothamMedium,
-    ["Sci-Fi"] = Enum.Font.Jura,
-    ["Arcade"] = Enum.Font.Arcade,
-    ["Classic"] = Enum.Font.SourceSansBold
+    ["Code"] = Enum.Font.Code, ["Gotham"] = Enum.Font.GothamMedium,
+    ["Sci-Fi"] = Enum.Font.Jura, ["Arcade"] = Enum.Font.Arcade, ["Classic"] = Enum.Font.SourceSansBold
 }
 
--- DRAGGABLE LOGIK
+-- DRAGGABLE & CLICK LOGIK (Unterscheidet zwischen Ziehen und Klicken)
 local dragging, dragInput, dragStart, startPos
+local isMenuOpen = false
+local mouseMovedDist = 0
+
 wmFrame.InputBegan:Connect(function(input)
-    if input.UserInputType == Enum.UserInputType.MouseButton1 and not wmConfig.AutoPosition then
-        dragging = true
+    if input.UserInputType == Enum.UserInputType.MouseButton1 then
+        dragging = not wmConfig.AutoPosition
         dragStart = input.Position
         startPos = wmFrame.Position
+        mouseMovedDist = 0
     end
 end)
+
 wmFrame.InputChanged:Connect(function(input)
-    if input.UserInputType == Enum.UserInputType.MouseMovement then dragInput = input end
+    if input.UserInputType == Enum.UserInputType.MouseMovement then 
+        dragInput = input 
+        if dragStart then
+            mouseMovedDist = (input.Position - dragStart).Magnitude
+        end
+    end
 end)
+
 UserInputService.InputChanged:Connect(function(input)
-    if input == dragInput and dragging then
+    if input == dragInput and dragging and mouseMovedDist > 5 then
         local delta = input.Position - dragStart
         wmFrame.Position = UDim2.new(0, startPos.X.Offset + delta.X, 0, startPos.Y.Offset + delta.Y)
     end
 end)
+
 UserInputService.InputEnded:Connect(function(input)
     if input.UserInputType == Enum.UserInputType.MouseButton1 then
         dragging = false
+        -- Wenn Maus kaum bewegt wurde -> Es war ein Klick! Menü öffnen!
+        if mouseMovedDist < 5 then
+            isMenuOpen = not isMenuOpen
+            menuFrame.Visible = true
+            TweenService:Create(menuFrame, TweenInfo.new(0.2), {Size = UDim2.new(0, 150, 0, isMenuOpen and 50 or 0)}):Play()
+        end
         if not wmConfig.AutoPosition then
             wmConfig.PosX = wmFrame.Position.X.Offset
             wmConfig.PosY = wmFrame.Position.Y.Offset
@@ -1800,13 +1877,12 @@ end)
 
 -- === 3. STYLE UPDATER ===
 local function applyStyle()
-    wmFrame.BackgroundTransparency = 0
-    wmFrame.BackgroundColor3 = Color3.fromRGB(15, 15, 15)
     wmCorner.CornerRadius = UDim.new(0, 4)
     wmStroke.Enabled = false
     wmTopLine.Visible = false
     wmText.TextColor3 = Color3.fromRGB(255, 255, 255)
     wmText.Font = fonts[wmConfig.Font] or Enum.Font.Code
+    vehText.Font = wmText.Font
 
     local style = wmConfig.Style
     if style == "Onetap" then
@@ -1834,23 +1910,23 @@ local function applyStyle()
         wmText.TextStrokeTransparency = 0.5
     end
     
-    wmFrame.ClipsDescendants = wmConfig.HoverExpand
+    if wmConfig.ShowVehicle then wmConfig.AutoPosition = true end -- Auto-Pos erzwingen bei Vehicle Mode
 end
 
-local function formatTime(seconds)
-    local m = math.floor(seconds / 60)
-    local s = math.floor(seconds % 60)
-    return string.format("%02d:%02d", m, s)
-end
+local function formatTime(sec) return string.format("%02d:%02d", math.floor(sec/60), math.floor(sec%60)) end
 
 -- === 4. UPDATE LOOP ===
 local fpsCounter, realFps, lastTick = 0, 0, tick()
-local isTypewriting = true
+local isStartupAnim = true
+local isVehOpen = false
 
 RunService.RenderStepped:Connect(function()
-    if not wmConfig.Enabled then 
-        wmFrame.Visible = false
-        return 
+    if not wmConfig.Enabled then wmFrame.Visible = false return end
+
+    -- Initial Money Setup
+    if not initialMoneySet and getMoney() > 0 then
+        initialMoney = getMoney()
+        initialMoneySet = true
     end
 
     fpsCounter = fpsCounter + 1
@@ -1864,53 +1940,52 @@ RunService.RenderStepped:Connect(function()
     if wmConfig.HideScope then
         local inScope = false
         pcall(function()
-            local plrGui = localPlayer:FindFirstChild("PlayerGui")
+            local plrGui = Players.LocalPlayer:FindFirstChild("PlayerGui")
             if plrGui then
                 for _, gui in pairs(plrGui:GetChildren()) do
-                    if gui:FindFirstChild("5") and gui:GetChildren()[1]:FindFirstChild("5").Image == "rbxassetid://285779644" then
-                        inScope = true
-                    end
+                    if gui:FindFirstChild("5") and gui:GetChildren()[1]:FindFirstChild("5").Image == "rbxassetid://285779644" then inScope = true end
                 end
             end
         end)
         if inScope then wmFrame.Visible = false return
-        elseif not isTypewriting then wmFrame.Visible = true end
+        elseif not isStartupAnim then wmFrame.Visible = true end
     end
 
-    if isTypewriting then return end
-
-    -- Aktive Module zählen für Smart Position
-    local activeCount = 0
-    if wmConfig.ShowFPS then activeCount = activeCount + 1 end
-    if wmConfig.ShowPing then activeCount = activeCount + 1 end
-    if wmConfig.ShowSpeed then activeCount = activeCount + 1 end
-    if wmConfig.ShowTime then activeCount = activeCount + 1 end
-    if wmConfig.ShowInfo then activeCount = activeCount + 1 end
-    if wmConfig.ShowPlaytime then activeCount = activeCount + 1 end
-    if wmConfig.ShowServer then activeCount = activeCount + 1 end
+    if isStartupAnim then return end
 
     -- Smart Auto Position
     if wmConfig.AutoPosition and not dragging then
-        if activeCount > 3 then
+        local activeCount = 0
+        if wmConfig.ShowFPS then activeCount = activeCount + 1 end
+        if wmConfig.ShowPing then activeCount = activeCount + 1 end
+        if wmConfig.ShowHP then activeCount = activeCount + 1 end
+        if wmConfig.ShowTime then activeCount = activeCount + 1 end
+        if wmConfig.ShowInfo then activeCount = activeCount + 1 end
+        if wmConfig.ShowPlaytime then activeCount = activeCount + 1 end
+        if wmConfig.ShowServer then activeCount = activeCount + 1 end
+        if wmConfig.ShowCops then activeCount = activeCount + 1 end
+        if wmConfig.ShowProfit then activeCount = activeCount + 1 end
+
+        if activeCount > 3 or wmConfig.ShowVehicle then
             local targetX = (Camera.ViewportSize.X / 2) - (wmFrame.Size.X.Offset / 2)
             wmFrame.Position = UDim2.new(0, targetX, 0, 20)
         else
             wmFrame.Position = UDim2.new(0, 15, 0, 50)
         end
-    elseif not wmConfig.AutoPosition and not dragging then
+    elseif not dragging then
         wmFrame.Position = UDim2.new(0, wmConfig.PosX, 0, wmConfig.PosY)
     end
 
-    -- Farben & Health Warning
+    -- Farben Logik (RGB, Health Warning, FPS Orange)
     local isLowHealth = false
-    if wmConfig.HealthWarning then
-        pcall(function()
-            local hum = localPlayer.Character:FindFirstChild("Humanoid")
-            if hum and hum.Health <= 35 and hum.Health > 0 then
-                isLowHealth = true
-            end
-        end)
-    end
+    local currentHp = 100
+    pcall(function()
+        local hum = Players.LocalPlayer.Character:FindFirstChild("Humanoid")
+        if hum then 
+            currentHp = math.floor(hum.Health)
+            if hum.Health <= 35 and hum.Health > 0 then isLowHealth = true end
+        end
+    end)
 
     local cHex = string.format("#%02X%02X%02X", wmConfig.AccentColor.R*255, wmConfig.AccentColor.G*255, wmConfig.AccentColor.B*255)
     if wmConfig.RGBText then
@@ -1918,13 +1993,11 @@ RunService.RenderStepped:Connect(function()
         cHex = string.format("#%02X%02X%02X", rgb.R*255, rgb.G*255, rgb.B*255)
     end
 
-    -- Wenn Low Health, überschreibe Farben mit schnellem Roten Blinken
-    if isLowHealth and math.floor(tick() * 6) % 2 == 0 then
+    if wmConfig.HealthWarning and isLowHealth and math.floor(tick() * 6) % 2 == 0 then
         cHex = "#ff0000"
         if wmConfig.Style == "Onetap" then wmTopLine.BackgroundColor3 = Color3.fromRGB(255,0,0) end
         if wmConfig.Style == "Neon" then wmStroke.Color = Color3.fromRGB(255,0,0) end
     else
-        -- Normale Rahmenfarben wiederherstellen
         if wmConfig.RGBLine then
             local rgbLine = Color3.fromHSV(tick() % 5 / 5, 1, 1)
             if wmConfig.Style == "Onetap" then wmTopLine.BackgroundColor3 = rgbLine end
@@ -1935,57 +2008,92 @@ RunService.RenderStepped:Connect(function()
         end
     end
 
-    -- Text Aufbau
-    local txt = ""
-    if wmConfig.Style == "Split-Design" then
-        txt = string.format('<font color="%s">INFINITYxEH</font> <font color="#555555">|</font> ', cHex)
-    else
-        txt = (wmConfig.UseIcons and "👑 " or "") .. string.format('<font color="%s">INFINITY</font> | ', cHex)
-    end
+    -- TEXT AUFBAU
+    local txt = (wmConfig.UseIcons and "👑 " or "") .. string.format('<font color="%s">INFINITY</font> | ', cHex)
 
-    if wmConfig.ShowFPS then txt = txt .. (wmConfig.UseIcons and "🚀 " or "FPS: ") .. realFps .. " | " end
+    if wmConfig.ShowFPS then 
+        local fColor = realFps < 30 and "#f97316" or "#ffffff" -- Orange if < 30
+        txt = txt .. string.format('%s<font color="%s">%d</font> | ', (wmConfig.UseIcons and "🚀 " or "FPS: "), fColor, realFps)
+    end
+    
     if wmConfig.ShowPing then
         local ping = 0
         pcall(function() ping = math.floor(Stats.Network.ServerStatsItem["Data Ping"]:GetValue()) end)
-        local pColor = ping > 100 and "#ff0000" or "#ffffff"
+        local pColor = ping > 100 and "#ef4444" or "#ffffff"
         txt = txt .. string.format('%s<font color="%s">%dms</font> | ', (wmConfig.UseIcons and "📡 " or "Ping: "), pColor, ping)
     end
-    if wmConfig.ShowServer then
-        local pCount = #Players:GetPlayers()
-        txt = txt .. (wmConfig.UseIcons and "🌍 " or "Players: ") .. pCount .. " | "
-    end
-    if wmConfig.ShowSpeed then
-        local speed = 0
-        pcall(function() speed = math.floor(localPlayer.Character.HumanoidRootPart.Velocity.Magnitude * 1.09) end)
-        txt = txt .. (wmConfig.UseIcons and "⚡ " or "Speed: ") .. speed .. "km/h | "
-    end
+
+    if wmConfig.ShowHP then txt = txt .. (wmConfig.UseIcons and "❤️ " or "HP: ") .. currentHp .. " | " end
     if wmConfig.ShowTime then txt = txt .. (wmConfig.UseIcons and "⌚ " or "Time: ") .. os.date("%H:%M") .. " | " end
     if wmConfig.ShowPlaytime then txt = txt .. (wmConfig.UseIcons and "⏳ " or "Session: ") .. formatTime(tick() - sessionStartTick) .. " | " end
+    if wmConfig.ShowServer then txt = txt .. (wmConfig.UseIcons and "🌍 " or "Players: ") .. #Players:GetPlayers() .. " | " end
+    
+    if wmConfig.ShowCops then
+        local cops = 0
+        for _, p in pairs(Players:GetPlayers()) do
+            pcall(function()
+                local job = p.leaderstats.Job.Value
+                if string.match(string.lower(job), "police") or string.match(string.lower(job), "cop") then cops = cops + 1 end
+            end)
+        end
+        txt = txt .. (wmConfig.UseIcons and "👮 " or "Cops: ") .. cops .. " | "
+    end
+
+    if wmConfig.ShowProfit and initialMoneySet then
+        local profit = getMoney() - initialMoney
+        local pStr = profit >= 0 and ("+" .. profit) or tostring(profit)
+        local pCol = profit >= 0 and "#22c55e" or "#ef4444"
+        txt = txt .. string.format('%s<font color="%s">%s</font> | ', (wmConfig.UseIcons and "💸 " or "Profit: "), pCol, pStr)
+    end
+
     if wmConfig.ShowInfo then
         local job, wanted = "Citizen", 0
         pcall(function()
-            local ls = localPlayer:FindFirstChild("leaderstats")
-            if ls then
-                if ls:FindFirstChild("Job") then job = ls.Job.Value end
-                if ls:FindFirstChild("Wanted") then wanted = ls.Wanted.Value end
-            end
+            job = Players.LocalPlayer.leaderstats.Job.Value
+            wanted = Players.LocalPlayer.leaderstats.Wanted.Value
         end)
         txt = txt .. (wmConfig.UseIcons and "💼 " or "Job: ") .. job .. " " .. string.rep("⭐", wanted) .. " | "
     end
 
     txt = txt:sub(1, -4)
     wmText.Text = txt
+    wmFrame.Size = UDim2.new(0, wmText.TextBounds.X + 20, 0, 22)
+    vehFrame.Size = UDim2.new(0, wmFrame.Size.X.Offset, 0, isVehOpen and 22 or 0)
 
-    -- Größe berechnen
-    local targetWidth = wmConfig.HoverExpand and 30 or (wmText.TextBounds.X + 20)
-    if wmConfig.HoverExpand then
-        wmText.TextTransparency = 1
-    else
-        wmFrame.Size = UDim2.new(0, targetWidth, 0, 22)
-        wmText.TextTransparency = (wmConfig.Style == "Minimalist" and 0) or 0
+    -- VEHICLE MODE LOGIK
+    if wmConfig.ShowVehicle then
+        local inCar = false
+        local speed, fuel, health = 0, "100%", "100%"
+        
+        pcall(function()
+            local seat = Players.LocalPlayer.Character.Humanoid.SeatPart
+            if seat and seat:IsA("VehicleSeat") then
+                inCar = true
+                speed = math.floor(seat.AssemblyLinearVelocity.Magnitude * 1.09) -- In KM/H
+                
+                -- EH spezifische Attribute suchen (Fallback 100%)
+                local carModel = seat.Parent
+                if carModel:GetAttribute("Fuel") then fuel = math.floor(carModel:GetAttribute("Fuel")) .. "%" end
+                if carModel:GetAttribute("Health") then health = math.floor(carModel:GetAttribute("Health")) .. "%" end
+            end
+        end)
+
+        if inCar and not isVehOpen then
+            isVehOpen = true
+            TweenService:Create(vehFrame, TweenInfo.new(0.3), {Size = UDim2.new(1, 0, 0, 22)}):Play()
+            TweenService:Create(vehText, TweenInfo.new(0.3), {TextTransparency = 0}):Play()
+        elseif not inCar and isVehOpen then
+            isVehOpen = false
+            TweenService:Create(vehFrame, TweenInfo.new(0.3), {Size = UDim2.new(1, 0, 0, 0)}):Play()
+            TweenService:Create(vehText, TweenInfo.new(0.3), {TextTransparency = 1}):Play()
+        end
+
+        if inCar then
+            vehText.Text = string.format("🚗 %d KM/H  |  ⛽ %s  |  🔧 %s", speed, fuel, health)
+        end
     end
 
-    -- Breathing Effekt
+    -- Breathing
     if wmConfig.Breathing and not isLowHealth then
         local breath = (math.sin(tick() * 3) + 1) / 2
         wmStroke.Transparency = breath
@@ -1993,25 +2101,11 @@ RunService.RenderStepped:Connect(function()
     end
 end)
 
--- Hover
-wmFrame.MouseEnter:Connect(function()
-    if wmConfig.HoverExpand then
-        TweenService:Create(wmFrame, TweenInfo.new(0.3), {Size = UDim2.new(0, wmText.TextBounds.X + 20, 0, 22)}):Play()
-        TweenService:Create(wmText, TweenInfo.new(0.3), {TextTransparency = 0}):Play()
-    end
-end)
-wmFrame.MouseLeave:Connect(function()
-    if wmConfig.HoverExpand then
-        TweenService:Create(wmFrame, TweenInfo.new(0.3), {Size = UDim2.new(0, 30, 0, 22)}):Play()
-        TweenService:Create(wmText, TweenInfo.new(0.3), {TextTransparency = 1}):Play()
-    end
-end)
-
 
 -- ==========================================
--- ⚙️ WIND UI MENÜ (Aufgeräumt)
+-- ⚙️ WIND UI MENÜ
 -- ==========================================
-watermarkTab:Paragraph({Title = "🎨 Design & Optik", Desc = "Stelle das Aussehen deines Watermarks ein."})
+watermarkTab:Paragraph({Title = "🎨 Design", Desc = "Klicke auf das Watermark für ein Quick-Menü!"})
 
 watermarkTab:Dropdown({
     Title = "Style auswählen",
@@ -2031,56 +2125,53 @@ watermarkTab:Colorpicker({
     Callback = function(c) wmConfig.AccentColor = c; applyStyle(); saveWmConfig() end
 })
 
--- Anzeige-Module
 watermarkTab:Divider({Text = "📊 Anzeige-Module"})
 watermarkTab:Toggle({Title = "Icons statt Text nutzen", Value = wmConfig.UseIcons, Callback = function(s) wmConfig.UseIcons = s; saveWmConfig() end})
-watermarkTab:Toggle({Title = "FPS (Bilder pro Sekunde)", Value = wmConfig.ShowFPS, Callback = function(s) wmConfig.ShowFPS = s; saveWmConfig() end})
-watermarkTab:Toggle({Title = "Ping (Verzögerung)", Value = wmConfig.ShowPing, Callback = function(s) wmConfig.ShowPing = s; saveWmConfig() end})
-watermarkTab:Toggle({Title = "Spieler auf dem Server", Value = wmConfig.ShowServer, Callback = function(s) wmConfig.ShowServer = s; saveWmConfig() end})
-watermarkTab:Toggle({Title = "Geschwindigkeit (km/h)", Value = wmConfig.ShowSpeed, Callback = function(s) wmConfig.ShowSpeed = s; saveWmConfig() end})
+watermarkTab:Toggle({Title = "FPS (Wird Orange bei Lags)", Value = wmConfig.ShowFPS, Callback = function(s) wmConfig.ShowFPS = s; saveWmConfig() end})
+watermarkTab:Toggle({Title = "Ping", Value = wmConfig.ShowPing, Callback = function(s) wmConfig.ShowPing = s; saveWmConfig() end})
+watermarkTab:Toggle({Title = "HP (Leben)", Value = wmConfig.ShowHP, Callback = function(s) wmConfig.ShowHP = s; saveWmConfig() end})
+watermarkTab:Toggle({Title = "Spieler Online", Value = wmConfig.ShowServer, Callback = function(s) wmConfig.ShowServer = s; saveWmConfig() end})
 watermarkTab:Toggle({Title = "Echte Uhrzeit", Value = wmConfig.ShowTime, Callback = function(s) wmConfig.ShowTime = s; saveWmConfig() end})
 watermarkTab:Toggle({Title = "Session Spielzeit", Value = wmConfig.ShowPlaytime, Callback = function(s) wmConfig.ShowPlaytime = s; saveWmConfig() end})
+
+watermarkTab:Divider({Text = "🚨 EH Spezifisch"})
+watermarkTab:Toggle({Title = "Cop Radar (Zählt Polizei)", Value = wmConfig.ShowCops, Callback = function(s) wmConfig.ShowCops = s; saveWmConfig() end})
+watermarkTab:Toggle({Title = "Session Profit (Geld Tracker)", Value = wmConfig.ShowProfit, Callback = function(s) wmConfig.ShowProfit = s; saveWmConfig() end})
+watermarkTab:Toggle({Title = "Dynamic Vehicle Mode (Auto Stats)", Value = wmConfig.ShowVehicle, Callback = function(s) wmConfig.ShowVehicle = s; applyStyle(); saveWmConfig() end})
 watermarkTab:Toggle({Title = "EH Job & Wanted Sterne", Value = wmConfig.ShowInfo, Callback = function(s) wmConfig.ShowInfo = s; saveWmConfig() end})
 
--- Effekte & Platzierung
-watermarkTab:Divider({Text = "✨ Spezial-Effekte & Verhalten"})
+watermarkTab:Divider({Text = "✨ Verhalten"})
 watermarkTab:Toggle({
-    Title = "Intelligente Auto-Position (Empfohlen)", 
-    Desc = "> 3 Infos = Oben Mitte | < 3 Infos = Oben Links",
+    Title = "Smart Auto-Position (Empfohlen)", 
+    Desc = "Positioniert sich bei > 3 Infos in der Mitte",
     Value = wmConfig.AutoPosition, 
     Callback = function(s) wmConfig.AutoPosition = s; saveWmConfig() end
 })
 watermarkTab:Toggle({Title = "Warnung bei wenig HP (Rotes Blinken)", Value = wmConfig.HealthWarning, Callback = function(s) wmConfig.HealthWarning = s; saveWmConfig() end})
-watermarkTab:Toggle({Title = "RGB Text (Regenbogen Schrift)", Value = wmConfig.RGBText, Callback = function(s) wmConfig.RGBText = s; saveWmConfig() end})
-watermarkTab:Toggle({Title = "RGB Rahmen / Linie", Value = wmConfig.RGBLine, Callback = function(s) wmConfig.RGBLine = s; applyStyle(); saveWmConfig() end})
+watermarkTab:Toggle({Title = "RGB Text", Value = wmConfig.RGBText, Callback = function(s) wmConfig.RGBText = s; saveWmConfig() end})
+watermarkTab:Toggle({Title = "RGB Rahmen", Value = wmConfig.RGBLine, Callback = function(s) wmConfig.RGBLine = s; applyStyle(); saveWmConfig() end})
 watermarkTab:Toggle({Title = "Pulsieren (Breathing)", Value = wmConfig.Breathing, Callback = function(s) wmConfig.Breathing = s; applyStyle(); saveWmConfig() end})
-watermarkTab:Toggle({Title = "Ausklappen bei Maus-Hover", Value = wmConfig.HoverExpand, Callback = function(s) wmConfig.HoverExpand = s; applyStyle(); saveWmConfig() end})
 watermarkTab:Toggle({Title = "Verstecken beim Snipen", Value = wmConfig.HideScope, Callback = function(s) wmConfig.HideScope = s; saveWmConfig() end})
 
--- === 6. STARTUP LOGIK ===
+-- === 6. STARTUP ANIMATION ===
 applyStyle()
 
 task.spawn(function()
-    task.wait(15)
-    if wmConfig.Enabled then
-        wmFrame.Visible = true
-        wmFrame.Size = UDim2.new(0, 100, 0, 22)
-        
-        local textToType = "INFINITYxEH"
-        wmText.Text = ""
-        
-        for i = 1, #textToType do
-            wmText.Text = textToType:sub(1, i)
-            task.wait(0.1)
-        end
-        task.wait(1)
-        isTypewriting = false
-    end
+    if not wmConfig.Enabled then return end
+    wmFrame.Visible = true
+    
+    -- Smooth Fade-In Animation
+    TweenService:Create(wmFrame, TweenInfo.new(1.5, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {BackgroundTransparency = wmConfig.Style == "Minimalist" and 1 or 0.2}):Play()
+    TweenService:Create(wmText, TweenInfo.new(1.5, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {TextTransparency = 0}):Play()
+    
+    task.wait(1.5)
+    isStartupAnim = false
 end)
 
 Window:OnDestroy(function()
     if wmGui then wmGui:Destroy() end
 end)
+
 
 local settingsTab = Window:Tab({
     Title = "Einstellungen",
