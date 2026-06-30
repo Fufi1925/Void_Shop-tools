@@ -1232,7 +1232,7 @@ crosshairTab:Toggle({
 crosshairTab:Slider({
     Title = "Dreh-Geschwindigkeit",
     Step = 10,
-    Value = {Min = 10, Max = 500, Default = 100},
+    Value = {Min = 10, Max = 10000, Default = 100},
     Callback = function(v) chSpinSpeed = v end
 })
 
