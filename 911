@@ -1100,9 +1100,12 @@ local chColor = Color3.fromRGB(255, 255, 255)
 local chThickness = 2
 local chLength = 12
 local chGap = 4
+local chTransparency = 1 -- NEU: Durchsichtigkeit
+local chOffsetY = -18 -- FIX: Standardmäßig höher gesetzt (gleicht die Roblox-Leiste aus)
 local chDot = false
-local chTShape = false -- NEU: T-Form
-local chDynamic = false -- NEU: Geht beim Laufen auseinander
+local chTShape = false 
+local chXShape = false -- NEU: X-Form
+local chDynamic = false 
 local chSpin = false
 local chSpinSpeed = 100
 local chRGB = false
@@ -1122,13 +1125,11 @@ local chCenterDot = Drawing.new("Circle")
 for _, line in pairs(chLines) do
     line.Visible = false
     line.ZIndex = 1000
-    line.Transparency = 1
 end
 
 chCenterDot.Visible = false
 chCenterDot.Filled = true
 chCenterDot.ZIndex = 1000
-chCenterDot.Transparency = 1
 
 local currentRotation = 0
 
@@ -1172,10 +1173,25 @@ crosshairTab:Toggle({
     Callback = function(state) chRGB = state end
 })
 
+crosshairTab:Slider({
+    Title = "Sichtbarkeit (Transparenz) %",
+    Desc = "Macht das Fadenkreuz durchsichtiger",
+    Step = 10,
+    Value = {Min = 10, Max = 100, Default = 100},
+    Callback = function(v) chTransparency = v / 100 end
+})
+
 crosshairTab:Toggle({
     Title = "Punkt in der Mitte",
     Flag = "ch_dot",
     Callback = function(state) chDot = state end
+})
+
+crosshairTab:Toggle({
+    Title = "X-Form (Diagonal)",
+    Desc = "Macht aus dem '+' ein 'X'",
+    Flag = "ch_xshape",
+    Callback = function(state) chXShape = state end
 })
 
 crosshairTab:Toggle({
@@ -1186,9 +1202,17 @@ crosshairTab:Toggle({
 })
 
 -- ==========================================
--- 📏 ABMESSUNGEN
+-- 📏 ABMESSUNGEN & POSITION
 -- ==========================================
-crosshairTab:Divider({Text = "Größe"})
+crosshairTab:Divider({Text = "Größe & Position"})
+
+crosshairTab:Slider({
+    Title = "Manuelle Höhe (Y-Verschiebung)",
+    Desc = "Schiebt das Crosshair hoch oder runter (- = hoch)",
+    Step = 1,
+    Value = {Min = -50, Max = 50, Default = -18},
+    Callback = function(v) chOffsetY = v end
+})
 
 crosshairTab:Slider({
     Title = "Dicke",
@@ -1213,7 +1237,7 @@ crosshairTab:Slider({
 
 crosshairTab:Toggle({
     Title = "Dynamischer Abstand",
-    Desc = "Reagiert auf Bewegungen des Spielers",
+    Desc = "Geht beim Laufen auseinander",
     Flag = "ch_dyn",
     Callback = function(state) chDynamic = state end
 })
@@ -1232,7 +1256,7 @@ crosshairTab:Toggle({
 crosshairTab:Slider({
     Title = "Dreh-Geschwindigkeit",
     Step = 10,
-    Value = {Min = 10, Max = 10000, Default = 100},
+    Value = {Min = 10, Max = 500, Default = 100},
     Callback = function(v) chSpinSpeed = v end
 })
 
@@ -1260,11 +1284,12 @@ local crosshairConnection = RunService.RenderStepped:Connect(function(dt)
         return
     end
 
-    -- Position
+    -- Position (Mit neuem Offset-System)
     local targetPos
     if chCenterLocked then
         local viewport = Camera.ViewportSize
-        targetPos = Vector2.new(viewport.X / 2, (viewport.Y / 2) + 18) 
+        -- Fügt den einstellbaren Offset hinzu (standardmäßig -18 für perfekte Mitte)
+        targetPos = Vector2.new(viewport.X / 2, (viewport.Y / 2) + chOffsetY) 
     else
         targetPos = UserInputService:GetMouseLocation()
     end
@@ -1279,12 +1304,14 @@ local crosshairConnection = RunService.RenderStepped:Connect(function(dt)
             local char = Players.LocalPlayer.Character
             if char and char:FindFirstChild("HumanoidRootPart") then
                 local speed = char.HumanoidRootPart.Velocity.Magnitude
-                activeGap = activeGap + (speed / 3) -- Vergrößert Gap basierend auf Speed
+                activeGap = activeGap + (speed / 3) 
             end
         end)
     end
 
-    -- Rotation
+    -- Rotation & X-Form
+    local baseRotation = chXShape and 45 or 0 -- Fügt 45 Grad hinzu für ein X
+
     if chSpin then
         currentRotation = currentRotation + (chSpinSpeed * dt)
         if currentRotation >= 360 then currentRotation = currentRotation - 360 end
@@ -1292,7 +1319,7 @@ local crosshairConnection = RunService.RenderStepped:Connect(function(dt)
         currentRotation = 0
     end
 
-    local rad = math.rad(currentRotation)
+    local rad = math.rad(currentRotation + baseRotation)
     local cosA = math.cos(rad)
     local sinA = math.sin(rad)
 
@@ -1320,9 +1347,10 @@ local crosshairConnection = RunService.RenderStepped:Connect(function(dt)
     for name, line in pairs(chLines) do
         line.Color = activeColor
         line.Thickness = chThickness
+        line.Transparency = chTransparency
         
-        -- T-Shape Logik (Obere Linie verstecken)
-        if chTShape and name == "Top" then
+        -- T-Shape Logik (Obere Linie verstecken, außer es ist X-Form)
+        if chTShape and not chXShape and name == "Top" then
             line.Visible = false
         else
             line.Visible = true
@@ -1334,6 +1362,7 @@ local crosshairConnection = RunService.RenderStepped:Connect(function(dt)
         chCenterDot.Position = targetPos
         chCenterDot.Radius = chThickness
         chCenterDot.Color = activeColor
+        chCenterDot.Transparency = chTransparency
         chCenterDot.Visible = true
     else
         chCenterDot.Visible = false
@@ -1346,7 +1375,6 @@ Window:OnDestroy(function()
     for _, line in pairs(chLines) do line:Remove() end
     if chCenterDot then chCenterDot:Remove() end
 end)
-
 
 soundtab = Window:Tab({
     Title = "Sounds",
