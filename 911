@@ -1657,6 +1657,372 @@ configTab:Button({
     end
 })
 
+
+local watermarkTab = Window:Tab({
+    Title = "Watermark",
+    Icon = "droplet"
+})
+
+local HttpService = game:GetService("HttpService")
+local RunService = game:GetService("RunService")
+local TweenService = game:GetService("TweenService")
+local UserInputService = game:GetService("UserInputService")
+local Stats = game:GetService("Stats")
+local Lighting = game:GetService("Lighting")
+
+-- === 1. CONFIG SYSTEM (Auto Save/Load) ===
+local wmConfigFile = "INFINITYxEH/watermark.json"
+
+local wmConfig = {
+    Enabled = true,
+    Style = "Onetap",
+    AccentColor = Color3.fromRGB(220, 38, 38), -- Blood Red
+    ShowFPS = true,
+    ShowPing = true,
+    ShowSpeed = false,
+    ShowTime = false,
+    ShowInfo = false, -- Job & Wanted
+    UseIcons = false,
+    RGBLine = false,
+    Breathing = false,
+    HoverExpand = false,
+    HideScope = true,
+    PosX = 10,
+    PosY = 10
+}
+
+-- Lade Config, falls vorhanden
+pcall(function()
+    if isfile(wmConfigFile) then
+        local decoded = HttpService:JSONDecode(readfile(wmConfigFile))
+        for k, v in pairs(decoded) do
+            if k == "AccentColor" then
+                wmConfig[k] = Color3.new(v.R, v.G, v.B)
+            else
+                wmConfig[k] = v
+            end
+        end
+    end
+end)
+
+local function saveWmConfig()
+    pcall(function()
+        local toSave = {}
+        for k, v in pairs(wmConfig) do
+            if typeof(v) == "Color3" then
+                toSave[k] = {R = v.R, G = v.G, B = v.B}
+            else
+                toSave[k] = v
+            end
+        end
+        writefile(wmConfigFile, HttpService:JSONEncode(toSave))
+    end)
+end
+
+-- === 2. UI ERSTELLUNG ===
+local wmGui = Instance.new("ScreenGui")
+wmGui.Name = "InfinityWatermark"
+wmGui.IgnoreGuiInset = true
+pcall(function() wmGui.Parent = (gethui and gethui()) or game:GetService("CoreGui") end)
+
+local wmFrame = Instance.new("Frame")
+wmFrame.Position = UDim2.new(0, wmConfig.PosX, 0, wmConfig.PosY)
+wmFrame.Parent = wmGui
+wmFrame.Visible = false -- Wird erst nach 15 Sekunden sichtbar
+wmFrame.Active = true
+
+local wmCorner = Instance.new("UICorner")
+wmCorner.Parent = wmFrame
+
+local wmStroke = Instance.new("UIStroke")
+wmStroke.Parent = wmFrame
+
+local wmTopLine = Instance.new("Frame")
+wmTopLine.BorderSizePixel = 0
+wmTopLine.Parent = wmFrame
+
+local wmText = Instance.new("TextLabel")
+wmText.Size = UDim2.new(1, -10, 1, 0)
+wmText.Position = UDim2.new(0, 5, 0, 0)
+wmText.BackgroundTransparency = 1
+wmText.RichText = true
+wmText.TextXAlignment = Enum.TextXAlignment.Left
+wmText.Font = Enum.Font.Code
+wmText.TextSize = 13
+wmText.Parent = wmFrame
+
+-- DRAGGABLE LOGIK (Verschiebbar)
+local dragging, dragInput, dragStart, startPos
+wmFrame.InputBegan:Connect(function(input)
+    if input.UserInputType == Enum.UserInputType.MouseButton1 then
+        dragging = true
+        dragStart = input.Position
+        startPos = wmFrame.Position
+    end
+end)
+wmFrame.InputChanged:Connect(function(input)
+    if input.UserInputType == Enum.UserInputType.MouseMovement then dragInput = input end
+end)
+UserInputService.InputChanged:Connect(function(input)
+    if input == dragInput and dragging then
+        local delta = input.Position - dragStart
+        wmFrame.Position = UDim2.new(0, startPos.X.Offset + delta.X, 0, startPos.Y.Offset + delta.Y)
+    end
+end)
+UserInputService.InputEnded:Connect(function(input)
+    if input.UserInputType == Enum.UserInputType.MouseButton1 then
+        dragging = false
+        wmConfig.PosX = wmFrame.Position.X.Offset
+        wmConfig.PosY = wmFrame.Position.Y.Offset
+        saveWmConfig()
+    end
+end)
+
+-- === 3. STYLE UPDATER ===
+local function applyStyle()
+    -- Reset alles
+    wmFrame.BackgroundTransparency = 0
+    wmFrame.BackgroundColor3 = Color3.fromRGB(15, 15, 15)
+    wmCorner.CornerRadius = UDim.new(0, 4)
+    wmStroke.Enabled = false
+    wmTopLine.Visible = false
+    wmText.TextColor3 = Color3.fromRGB(255, 255, 255)
+    wmText.TextXAlignment = Enum.TextXAlignment.Left
+
+    local style = wmConfig.Style
+    if style == "Onetap" then
+        wmFrame.BackgroundColor3 = Color3.fromRGB(20, 20, 20)
+        wmFrame.BackgroundTransparency = 0.2
+        wmTopLine.Visible = true
+        wmTopLine.Size = UDim2.new(1, 0, 0, 2)
+        wmTopLine.BackgroundColor3 = wmConfig.AccentColor
+        wmCorner.CornerRadius = UDim.new(0, 0)
+    elseif style == "Glassmorphism" then
+        wmFrame.BackgroundTransparency = 0.5
+        wmFrame.BackgroundColor3 = Color3.fromRGB(0, 0, 0)
+        wmCorner.CornerRadius = UDim.new(0, 8)
+        wmStroke.Enabled = true
+        wmStroke.Color = Color3.fromRGB(255, 255, 255)
+        wmStroke.Transparency = 0.8
+    elseif style == "Pill-Shape" then
+        wmCorner.CornerRadius = UDim.new(1, 0)
+    elseif style == "Neon" then
+        wmStroke.Enabled = true
+        wmStroke.Color = wmConfig.AccentColor
+        wmStroke.Thickness = 2
+    elseif style == "Minimalist" then
+        wmFrame.BackgroundTransparency = 1
+        wmText.TextStrokeTransparency = 0.5
+    end
+    
+    if wmConfig.HoverExpand then
+        wmFrame.ClipsDescendants = true
+    else
+        wmFrame.ClipsDescendants = false
+    end
+end
+
+-- === 4. DATEN ERFASSUNG & UPDATE LOOP ===
+local fpsCounter = 0
+local realFps = 0
+local lastTick = tick()
+local isTypewriting = true -- Blockiert normale Updates am Anfang
+
+local function getPing()
+    local ping = 0
+    pcall(function() ping = math.floor(Stats.Network.ServerStatsItem["Data Ping"]:GetValue()) end)
+    return ping
+end
+
+RunService.RenderStepped:Connect(function()
+    if not wmConfig.Enabled then 
+        wmFrame.Visible = false
+        return 
+    end
+
+    fpsCounter = fpsCounter + 1
+    if tick() - lastTick >= 1 then
+        realFps = fpsCounter
+        fpsCounter = 0
+        lastTick = tick()
+    end
+
+    -- Dynamisch verstecken (Sniper)
+    if wmConfig.HideScope then
+        local inScope = false
+        pcall(function()
+            local plrGui = localPlayer:FindFirstChild("PlayerGui")
+            if plrGui then
+                for _, gui in pairs(plrGui:GetChildren()) do
+                    if gui:FindFirstChild("5") and gui:GetChildren()[1]:FindFirstChild("5").Image == "rbxassetid://285779644" then
+                        inScope = true
+                    end
+                end
+            end
+        end)
+        if inScope then
+            wmFrame.Visible = false
+            return
+        elseif not isTypewriting then
+            wmFrame.Visible = true
+        end
+    end
+
+    -- Wenn Typewriter läuft, Text nicht updaten
+    if isTypewriting then return end
+
+    -- Text zusammenbauen
+    local cHex = string.format("#%02X%02X%02X", wmConfig.AccentColor.R*255, wmConfig.AccentColor.G*255, wmConfig.AccentColor.B*255)
+    
+    local txt = ""
+    if wmConfig.Style == "Split-Design" then
+        txt = string.format('<font color="%s">INFINITYxEH</font> <font color="#555555">|</font> ', cHex)
+    else
+        txt = (wmConfig.UseIcons and "👑 " or "") .. string.format('<font color="%s">INFINITY</font> | ', cHex)
+    end
+
+    if wmConfig.ShowFPS then
+        txt = txt .. (wmConfig.UseIcons and "🚀 " or "FPS: ") .. realFps .. " | "
+    end
+
+    if wmConfig.ShowPing then
+        local ping = getPing()
+        local pColor = ping > 100 and "#ff0000" or "#ffffff"
+        txt = txt .. string.format('%s<font color="%s">%dms</font> | ', (wmConfig.UseIcons and "📡 " or "Ping: "), pColor, ping)
+    end
+
+    if wmConfig.ShowSpeed then
+        local speed = 0
+        pcall(function() speed = math.floor(localPlayer.Character.HumanoidRootPart.Velocity.Magnitude * 1.09) end)
+        txt = txt .. (wmConfig.UseIcons and "⚡ " or "Speed: ") .. speed .. "km/h | "
+    end
+
+    if wmConfig.ShowTime then
+        local rTime = os.date("%H:%M")
+        local iTime = Lighting.TimeOfDay:sub(1, 5)
+        txt = txt .. (wmConfig.UseIcons and "⌚ " or "Time: ") .. rTime .. " (IG: " .. iTime .. ") | "
+    end
+
+    if wmConfig.ShowInfo then
+        local job = "Citizen"
+        local wanted = 0
+        pcall(function()
+            local ls = localPlayer:FindFirstChild("leaderstats")
+            if ls then
+                if ls:FindFirstChild("Job") then job = ls.Job.Value end
+                if ls:FindFirstChild("Wanted") then wanted = ls.Wanted.Value end
+            end
+        end)
+        local starStr = string.rep("⭐", wanted)
+        txt = txt .. (wmConfig.UseIcons and "💼 " or "Job: ") .. job .. " " .. starStr .. " | "
+    end
+
+    -- Letztes " | " entfernen
+    txt = txt:sub(1, -4)
+    wmText.Text = txt
+
+    -- Rahmen Größe anpassen
+    local textBounds = wmText.TextBounds.X
+    local targetWidth = wmConfig.HoverExpand and 30 or (textBounds + 20)
+    
+    if wmConfig.HoverExpand then
+        wmText.TextTransparency = 1
+    else
+        wmFrame.Size = UDim2.new(0, targetWidth, 0, 22)
+        wmText.TextTransparency = (wmConfig.Style == "Minimalist" and 0) or 0
+    end
+
+    -- RGB Line Update
+    if wmConfig.RGBLine then
+        local rgbColor = Color3.fromHSV(tick() % 5 / 5, 1, 1)
+        if wmConfig.Style == "Onetap" then wmTopLine.BackgroundColor3 = rgbColor end
+        if wmConfig.Style == "Neon" then wmStroke.Color = rgbColor end
+    end
+
+    -- Breathing Update
+    if wmConfig.Breathing then
+        local breath = (math.sin(tick() * 3) + 1) / 2
+        wmStroke.Transparency = breath
+        if wmConfig.Style == "Onetap" then wmTopLine.BackgroundTransparency = breath end
+    end
+end)
+
+-- Hover Expand Logik
+wmFrame.MouseEnter:Connect(function()
+    if wmConfig.HoverExpand then
+        TweenService:Create(wmFrame, TweenInfo.new(0.3), {Size = UDim2.new(0, wmText.TextBounds.X + 20, 0, 22)}):Play()
+        TweenService:Create(wmText, TweenInfo.new(0.3), {TextTransparency = 0}):Play()
+    end
+end)
+wmFrame.MouseLeave:Connect(function()
+    if wmConfig.HoverExpand then
+        TweenService:Create(wmFrame, TweenInfo.new(0.3), {Size = UDim2.new(0, 30, 0, 22)}):Play()
+        TweenService:Create(wmText, TweenInfo.new(0.3), {TextTransparency = 1}):Play()
+    end
+end)
+
+-- === 5. WIND UI MENÜ ===
+watermarkTab:Paragraph({Title = "🎨 Design", Desc = "Wie das Watermark aussehen soll"})
+
+watermarkTab:Dropdown({
+    Title = "Style auswählen",
+    Values = {"Onetap", "Glassmorphism", "Pill-Shape", "Neon", "Minimalist", "Split-Design"},
+    Value = wmConfig.Style,
+    Callback = function(val) wmConfig.Style = val; applyStyle(); saveWmConfig() end
+})
+
+watermarkTab:Colorpicker({
+    Title = "Akzent-Farbe",
+    Default = wmConfig.AccentColor,
+    Callback = function(color) wmConfig.AccentColor = color; applyStyle(); saveWmConfig() end
+})
+
+watermarkTab:Toggle({Title = "Icons statt Text nutzen", Value = wmConfig.UseIcons, Callback = function(s) wmConfig.UseIcons = s; saveWmConfig() end})
+
+watermarkTab:Divider({Text = "📊 Anzeige Optionen"})
+watermarkTab:Toggle({Title = "FPS anzeigen", Value = wmConfig.ShowFPS, Callback = function(s) wmConfig.ShowFPS = s; saveWmConfig() end})
+watermarkTab:Toggle({Title = "Ping anzeigen", Value = wmConfig.ShowPing, Callback = function(s) wmConfig.ShowPing = s; saveWmConfig() end})
+watermarkTab:Toggle({Title = "Geschwindigkeit anzeigen", Value = wmConfig.ShowSpeed, Callback = function(s) wmConfig.ShowSpeed = s; saveWmConfig() end})
+watermarkTab:Toggle({Title = "Uhrzeit anzeigen", Value = wmConfig.ShowTime, Callback = function(s) wmConfig.ShowTime = s; saveWmConfig() end})
+watermarkTab:Toggle({Title = "Job & Wanted anzeigen", Value = wmConfig.ShowInfo, Callback = function(s) wmConfig.ShowInfo = s; saveWmConfig() end})
+
+watermarkTab:Divider({Text = "✨ Effekte & Logik"})
+watermarkTab:Toggle({Title = "RGB Rahmen/Linie", Value = wmConfig.RGBLine, Callback = function(s) wmConfig.RGBLine = s; applyStyle(); saveWmConfig() end})
+watermarkTab:Toggle({Title = "Pulsieren (Breathing)", Value = wmConfig.Breathing, Callback = function(s) wmConfig.Breathing = s; applyStyle(); saveWmConfig() end})
+watermarkTab:Toggle({Title = "Ausklappen bei Hover", Value = wmConfig.HoverExpand, Callback = function(s) wmConfig.HoverExpand = s; applyStyle(); saveWmConfig() end})
+watermarkTab:Toggle({Title = "Verstecken beim Snipen", Value = wmConfig.HideScope, Callback = function(s) wmConfig.HideScope = s; saveWmConfig() end})
+
+-- === 6. STARTUP LOGIK (15s Typewriter) ===
+applyStyle()
+
+task.spawn(function()
+    -- 15 Sekunden warten
+    task.wait(15)
+    
+    if wmConfig.Enabled then
+        wmFrame.Visible = true
+        wmFrame.Size = UDim2.new(0, 100, 0, 22)
+        
+        local textToType = "INFINITYxEH"
+        wmText.Text = ""
+        
+        -- Typewriter Effekt
+        for i = 1, #textToType do
+            wmText.Text = textToType:sub(1, i)
+            task.wait(0.1)
+        end
+        
+        task.wait(1)
+        isTypewriting = false -- Ab jetzt übernimmt der Update Loop
+    end
+end)
+
+-- Cleanup
+Window:OnDestroy(function()
+    if wmGui then wmGui:Destroy() end
+end)
+
+
 local settingsTab = Window:Tab({
     Title = "Einstellungen",
     Icon = "settings"
@@ -1936,64 +2302,6 @@ settingsTab:Button({
     end
 })
 
--- === WATERMARK (UI Name + FPS) ===
-local watermarkEnabled = true
-
--- Erstelle das UI für das Watermark
-local watermarkGui = Instance.new("ScreenGui")
-watermarkGui.Name = "InfinityWatermark"
-watermarkGui.IgnoreGuiInset = true
-pcall(function() watermarkGui.Parent = (gethui and gethui()) or game:GetService("CoreGui") end)
-
-local watermarkFrame = Instance.new("Frame")
-watermarkFrame.Size = UDim2.new(0, 170, 0, 25)
-watermarkFrame.Position = UDim2.new(0, 10, 0, 50) -- Oben links, direkt unter dem Roblox Icon
-watermarkFrame.BackgroundColor3 = Color3.fromRGB(10, 0, 0) -- Dunkelrot/Schwarz passend zum Theme
-watermarkFrame.Visible = false
-watermarkFrame.Parent = watermarkGui
-
-local uiCorner = Instance.new("UICorner")
-uiCorner.CornerRadius = UDim.new(0, 5)
-uiCorner.Parent = watermarkFrame
-
-local uiStroke = Instance.new("UIStroke")
-uiStroke.Color = Color3.fromRGB(220, 38, 38) -- Roter Rand
-uiStroke.Thickness = 1
-uiStroke.Parent = watermarkFrame
-
-local watermarkText = Instance.new("TextLabel")
-watermarkText.Size = UDim2.new(1, 0, 1, 0)
-watermarkText.BackgroundTransparency = 1
-watermarkText.Text = "INFINITYxEH | FPS: 0"
-watermarkText.TextColor3 = Color3.fromRGB(255, 255, 255)
-watermarkText.TextSize = 13
-watermarkText.Font = Enum.Font.Code
-watermarkText.Parent = watermarkFrame
-
--- FPS Zähler Logik
-local frames = 0
-local lastUpdate = tick()
-
-local watermarkConn = game:GetService("RunService").RenderStepped:Connect(function()
-    if watermarkEnabled then
-        frames = frames + 1
-        if tick() - lastUpdate >= 1 then
-            watermarkText.Text = "INFINITYxEH | FPS: " .. frames
-            frames = 0
-            lastUpdate = tick()
-        end
-    end
-end)
-
-settingsTab:Toggle({
-    Title = "Watermark",
-    Desc = "Zeigt den UI-Namen und deine FPS oben links an",
-    Flag = "show_watermark",
-    Callback = function(state)
-        watermarkEnabled = state
-        watermarkFrame.Visible = state
-    end
-})
 
 -- Zerstört das Watermark, wenn das UI gelöscht wird (z.B. durch Kill Script)
 Window:OnDestroy(function()
