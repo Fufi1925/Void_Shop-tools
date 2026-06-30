@@ -1909,7 +1909,7 @@ settingsTab:Button({
 })
 
 -- === WATERMARK (UI Name + FPS) ===
-local watermarkEnabled = false
+local watermarkEnabled = true
 
 -- Erstelle das UI für das Watermark
 local watermarkGui = Instance.new("ScreenGui")
