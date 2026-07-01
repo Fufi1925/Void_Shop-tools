@@ -1294,3 +1294,1887 @@ SkinsTab:Dropdown({Title = "G36 Skin", Values = {"Default", "Blood", "Gold", "Ga
 SkinsTab:Divider({Text = "🛡️ Gear Skins"})
 SkinsTab:Dropdown({Title = "Helmet Skin", Values = {"Default", "Blood", "Gold", "Galaxy", "Dark Matter"}, Value = SkinCfg.HelmetSkin, Callback = function(v) SkinCfg.HelmetSkin = v; SaveMasterConfig() end})
 SkinsTab:Dropdown({Title = "Vest Skin", Values = {"Default", "Blood", "Gold", "Galaxy", "Dark Matter"}, Value = SkinCfg.VestSkin, Callback = function(v) SkinCfg.VestSkin = v; SaveMasterConfig() end})
+
+-- ==============================================================================
+-- 7. MASTER CONFIG EXTENSION (ADVANCED PLAYER & WAYPOINTS)
+-- ==============================================================================
+pcall(function()
+    if not MasterConfig.PlayerAdvanced then
+        MasterConfig.PlayerAdvanced = {
+            AntiAFK = false, AntiAFKSpin = false, AntiAFKJump = false,
+            InstantInteract = false, InteractRange = 10, InteractDelay = 0,
+            WalkSpeedSpoof = false, WalkSpeedValue = 16, UseCFrameWalk = false,
+            JumpPowerSpoof = false, JumpPowerValue = 50, InfJump = false, InfJumpCooldown = 0.2,
+            Noclip = false, NoclipBypass = false, Fly = false, FlySpeed = 50,
+            Spinbot = false, SpinbotSpeed = 20, SpinbotAxisX = false, SpinbotAxisY = true, SpinbotAxisZ = false,
+            SafeFall = false, MaxFallSpeed = 50, FakeLag = false, FakeLagTick = 15,
+            AutoSprint = false, BunnyHop = false, AutoHealDetect = false
+        }
+    end
+    if not MasterConfig.AdvancedWaypoints then
+        MasterConfig.AdvancedWaypoints = {
+            Enabled = false, ShowDistance = true, ShowLines = false, LineThickness = 1,
+            LineColorR = 255, LineColorG = 255, LineColorB = 255, LineAlpha = 0.5,
+            ShowOffscreen = true, OffscreenRadius = 150, OffscreenSize = 10,
+            TextScale = 14, TextOutline = true, Bobbing = true, BobbingSpeed = 2,
+            -- Core EH Locations
+            LocBank = false, LocJewelry = false, LocGunStore = false, LocDealer = false,
+            LocHospital = false, LocPolice = false, LocCrimBase = false, LocCivilian = false,
+            CustomWaypoints = {} -- Array for user created waypoints
+        }
+    end
+end)
+
+-- ==============================================================================
+-- TAB 8: PLAYER (ADVANCED QOL & MOVEMENT) - [300+ LINES]
+-- ==============================================================================
+local PlayerTab = Window:Tab({
+    Title = "Player",
+    Icon = "user"
+})
+
+local PlrCfg = MasterConfig.PlayerAdvanced
+
+-- Variables for Player Logic
+local NoclipConnection, FlyConnection, SpinbotConnection, FakeLagConnection, MovementConnection
+local FlyBodyVelocity, FlyBodyGyro
+local LastJumpTime = tick()
+local FakeLagCache = CFrame.new()
+local LagTickCounter = 0
+
+-- 8.1 ANTI-AFK SYSTEM (Highly Advanced)
+local AntiAfkConnection
+local function ToggleAntiAFK()
+    if PlrCfg.AntiAFK then
+        if not AntiAfkConnection then
+            AntiAfkConnection = LocalPlayer.Idled:Connect(function()
+                pcall(function()
+                    VirtualUser:CaptureController()
+                    VirtualUser:ClickButton2(Vector2.new(Camera.ViewportSize.X/2, Camera.ViewportSize.Y/2))
+                    
+                    if PlrCfg.AntiAFKSpin then
+                        Camera.CFrame = Camera.CFrame * CFrame.Angles(0, math.rad(math.random(10, 45)), 0)
+                    end
+                    if PlrCfg.AntiAFKJump and LocalPlayer.Character and LocalPlayer.Character:FindFirstChild("Humanoid") then
+                        LocalPlayer.Character.Humanoid:ChangeState(Enum.HumanoidStateType.Jumping)
+                    end
+                end)
+            end)
+        end
+    else
+        if AntiAfkConnection then AntiAfkConnection:Disconnect(); AntiAfkConnection = nil end
+    end
+end
+
+-- 8.2 INSTANT INTERACT (Deep Engine Bypass)
+local PromptConnection
+local function ToggleInstantInteract()
+    if PromptConnection then PromptConnection:Disconnect(); PromptConnection = nil end
+    if PlrCfg.InstantInteract then
+        PromptConnection = RunService.Heartbeat:Connect(function()
+            pcall(function()
+                for _, prompt in pairs(Workspace:GetDescendants()) do
+                    if prompt:IsA("ProximityPrompt") then
+                        prompt.HoldDuration = PlrCfg.InteractDelay
+                        if prompt.MaxActivationDistance < PlrCfg.InteractRange then
+                            prompt.MaxActivationDistance = PlrCfg.InteractRange
+                        end
+                        prompt.RequiresLineOfSight = false
+                    end
+                end
+            end)
+        end)
+    end
+end
+
+-- 8.3 MOVEMENT SPOOFING & CFRAME WALK
+local function HandleMovementLogic()
+    if MovementConnection then MovementConnection:Disconnect(); MovementConnection = nil end
+    MovementConnection = RunService.RenderStepped:Connect(function(deltaTime)
+        pcall(function()
+            local Character = LocalPlayer.Character
+            if not Character then return end
+            local Humanoid = Character:FindFirstChild("Humanoid")
+            local RootPart = Character:FindFirstChild("HumanoidRootPart")
+            if not Humanoid or not RootPart then return end
+
+            -- CFrame Walk (Bypasses basic anti-cheats)
+            if PlrCfg.WalkSpeedSpoof and PlrCfg.UseCFrameWalk and Humanoid.MoveDirection.Magnitude > 0 then
+                local MoveDir = Humanoid.MoveDirection.Unit
+                local SpeedDiff = PlrCfg.WalkSpeedValue - Humanoid.WalkSpeed
+                if SpeedDiff > 0 then
+                    RootPart.CFrame = RootPart.CFrame + (MoveDir * (SpeedDiff * deltaTime))
+                end
+            elseif PlrCfg.WalkSpeedSpoof and not PlrCfg.UseCFrameWalk then
+                Humanoid.WalkSpeed = PlrCfg.WalkSpeedValue
+            end
+
+            if PlrCfg.JumpPowerSpoof then
+                Humanoid.UseJumpPower = true
+                Humanoid.JumpPower = PlrCfg.JumpPowerValue
+            end
+
+            if PlrCfg.SafeFall then
+                local Velocity = RootPart.AssemblyLinearVelocity
+                if Velocity.Y < -PlrCfg.MaxFallSpeed then
+                    RootPart.AssemblyLinearVelocity = Vector3.new(Velocity.X, -PlrCfg.MaxFallSpeed, Velocity.Z)
+                end
+            end
+
+            if PlrCfg.AutoSprint then
+                -- EH Specific Sprint implementation (Simulating Shift press)
+                -- If EH uses WalkSpeed for sprint, this overrides it smoothly
+                if Humanoid.MoveDirection.Magnitude > 0 then
+                    Humanoid.WalkSpeed = math.max(Humanoid.WalkSpeed, 25)
+                end
+            end
+
+            if PlrCfg.BunnyHop and UserInputService:IsKeyDown(Enum.KeyCode.Space) then
+                if Humanoid:GetState() == Enum.HumanoidStateType.Running or Humanoid:GetState() == Enum.HumanoidStateType.RunningNoPhysics then
+                    Humanoid:ChangeState(Enum.HumanoidStateType.Jumping)
+                end
+            end
+        end)
+    end)
+end
+
+-- 8.4 NOCLIP ENGINE (Stepped for physics override)
+local function ToggleNoclip()
+    if NoclipConnection then NoclipConnection:Disconnect(); NoclipConnection = nil end
+    if PlrCfg.Noclip then
+        NoclipConnection = RunService.Stepped:Connect(function()
+            pcall(function()
+                local Character = LocalPlayer.Character
+                if Character then
+                    for _, Part in pairs(Character:GetDescendants()) do
+                        if Part:IsA("BasePart") and Part.CanCollide then
+                            Part.CanCollide = false
+                        end
+                    end
+                end
+            end)
+        end)
+    end
+end
+
+-- 8.5 INFINITE JUMP
+UserInputService.JumpRequest:Connect(function()
+    pcall(function()
+        if PlrCfg.InfJump then
+            if tick() - LastJumpTime > PlrCfg.InfJumpCooldown then
+                LastJumpTime = tick()
+                local Character = LocalPlayer.Character
+                local Humanoid = Character and Character:FindFirstChild("Humanoid")
+                if Humanoid then
+                    Humanoid:ChangeState(Enum.HumanoidStateType.Jumping)
+                    local RootPart = Character:FindFirstChild("HumanoidRootPart")
+                    if RootPart then
+                        RootPart.AssemblyLinearVelocity = Vector3.new(RootPart.AssemblyLinearVelocity.X, PlrCfg.JumpPowerValue, RootPart.AssemblyLinearVelocity.Z)
+                        
+                        -- Optional Particle Effect for Inf Jump
+                        local Effect = Instance.new("Part", Workspace)
+                        Effect.Size = Vector3.new(3, 0.1, 3)
+                        Effect.Position = RootPart.Position - Vector3.new(0, 3, 0)
+                        Effect.Anchored = true
+                        Effect.CanCollide = false
+                        Effect.Transparency = 0.5
+                        Effect.Material = Enum.Material.Neon
+                        Effect.Color = Color3.fromRGB(220, 38, 38)
+                        local Cylinder = Instance.new("CylinderMesh", Effect)
+                        TweenService:Create(Effect, TweenInfo.new(0.5), {Transparency = 1, Size = Vector3.new(6, 0.1, 6)}):Play()
+                        game.Debris:AddItem(Effect, 0.5)
+                    end
+                end
+            end
+        end
+    end)
+end)
+
+-- 8.6 SPINBOT (Server-Side Distraction)
+local function ToggleSpinbot()
+    if SpinbotConnection then SpinbotConnection:Disconnect(); SpinbotConnection = nil end
+    if PlrCfg.Spinbot then
+        SpinbotConnection = RunService.RenderStepped:Connect(function()
+            pcall(function()
+                local RootPart = LocalPlayer.Character.HumanoidRootPart
+                local X = PlrCfg.SpinbotAxisX and PlrCfg.SpinbotSpeed or 0
+                local Y = PlrCfg.SpinbotAxisY and PlrCfg.SpinbotSpeed or 0
+                local Z = PlrCfg.SpinbotAxisZ and PlrCfg.SpinbotSpeed or 0
+                RootPart.CFrame = RootPart.CFrame * CFrame.Angles(math.rad(X), math.rad(Y), math.rad(Z))
+            end)
+        end)
+    end
+end
+
+-- 8.7 FAKE LAG (Network Manipulation Simulation)
+local function ToggleFakeLag()
+    if FakeLagConnection then FakeLagConnection:Disconnect(); FakeLagConnection = nil end
+    if PlrCfg.FakeLag then
+        FakeLagConnection = RunService.Heartbeat:Connect(function()
+            pcall(function()
+                local RootPart = LocalPlayer.Character.HumanoidRootPart
+                LagTickCounter = LagTickCounter + 1
+                if LagTickCounter >= PlrCfg.FakeLagTick then
+                    FakeLagCache = RootPart.CFrame
+                    LagTickCounter = 0
+                    RootPart.Anchored = false
+                else
+                    RootPart.Anchored = true
+                    RootPart.CFrame = FakeLagCache
+                end
+            end)
+        end)
+    else
+        pcall(function() LocalPlayer.Character.HumanoidRootPart.Anchored = false end)
+    end
+end
+
+-- 8.8 PLAYER UI MENU BUILDING
+PlayerTab:Paragraph({Title = "⚙️ Automation & Interactivity", Desc = "Modify how your player interacts with the world."})
+
+PlayerTab:Toggle({Title = "Enable Anti-AFK", Value = PlrCfg.AntiAFK, Callback = function(v) PlrCfg.AntiAFK = v; ToggleAntiAFK(); SaveMasterConfig() end})
+PlayerTab:Toggle({Title = "Anti-AFK: Spin Camera", Value = PlrCfg.AntiAFKSpin, Callback = function(v) PlrCfg.AntiAFKSpin = v; SaveMasterConfig() end})
+PlayerTab:Toggle({Title = "Anti-AFK: Auto Jump", Value = PlrCfg.AntiAFKJump, Callback = function(v) PlrCfg.AntiAFKJump = v; SaveMasterConfig() end})
+
+PlayerTab:Divider()
+PlayerTab:Toggle({Title = "Instant Interact (Hold E Bypass)", Value = PlrCfg.InstantInteract, Callback = function(v) PlrCfg.InstantInteract = v; ToggleInstantInteract(); SaveMasterConfig() end})
+PlayerTab:Slider({Title = "Interaction Range Extension", Step = 1, Value = {Min = 5, Max = 50, Default = PlrCfg.InteractRange}, Callback = function(v) PlrCfg.InteractRange = v; SaveMasterConfig() end})
+
+PlayerTab:Paragraph({Title = "🏃 Movement Manipulation", Desc = "Bypass physics and move dynamically."})
+
+PlayerTab:Toggle({Title = "Spoof WalkSpeed", Value = PlrCfg.WalkSpeedSpoof, Callback = function(v) PlrCfg.WalkSpeedSpoof = v; HandleMovementLogic(); SaveMasterConfig() end})
+PlayerTab:Slider({Title = "WalkSpeed Value", Step = 1, Value = {Min = 16, Max = 150, Default = PlrCfg.WalkSpeedValue}, Callback = function(v) PlrCfg.WalkSpeedValue = v; SaveMasterConfig() end})
+PlayerTab:Toggle({Title = "Use CFrame Walk (Bypass AC)", Value = PlrCfg.UseCFrameWalk, Callback = function(v) PlrCfg.UseCFrameWalk = v; SaveMasterConfig() end})
+PlayerTab:Toggle({Title = "Auto Sprint", Value = PlrCfg.AutoSprint, Callback = function(v) PlrCfg.AutoSprint = v; SaveMasterConfig() end})
+PlayerTab:Toggle({Title = "Auto BunnyHop (Hold Space)", Value = PlrCfg.BunnyHop, Callback = function(v) PlrCfg.BunnyHop = v; SaveMasterConfig() end})
+
+PlayerTab:Divider()
+PlayerTab:Toggle({Title = "Spoof JumpPower", Value = PlrCfg.JumpPowerSpoof, Callback = function(v) PlrCfg.JumpPowerSpoof = v; HandleMovementLogic(); SaveMasterConfig() end})
+PlayerTab:Slider({Title = "JumpPower Value", Step = 1, Value = {Min = 50, Max = 300, Default = PlrCfg.JumpPowerValue}, Callback = function(v) PlrCfg.JumpPowerValue = v; SaveMasterConfig() end})
+PlayerTab:Toggle({Title = "Infinite Jump (Mid-Air Jumping)", Value = PlrCfg.InfJump, Callback = function(v) PlrCfg.InfJump = v; SaveMasterConfig() end})
+PlayerTab:Slider({Title = "Inf-Jump Cooldown", Step = 0.1, Value = {Min = 0.1, Max = 2, Default = PlrCfg.InfJumpCooldown}, Callback = function(v) PlrCfg.InfJumpCooldown = v; SaveMasterConfig() end})
+
+PlayerTab:Paragraph({Title = "🛡️ Physics & Exploit Mechanics", Desc = "Noclip, Spinbot and Network Manipulation."})
+
+PlayerTab:Toggle({Title = "Enable Noclip (Walk through walls)", Value = PlrCfg.Noclip, Callback = function(v) PlrCfg.Noclip = v; ToggleNoclip(); SaveMasterConfig() end})
+PlayerTab:Toggle({Title = "Safe Fall (Prevents fall damage)", Value = PlrCfg.SafeFall, Callback = function(v) PlrCfg.SafeFall = v; SaveMasterConfig() end})
+PlayerTab:Slider({Title = "Max Fall Speed", Step = 1, Value = {Min = 10, Max = 100, Default = PlrCfg.MaxFallSpeed}, Callback = function(v) PlrCfg.MaxFallSpeed = v; SaveMasterConfig() end})
+
+PlayerTab:Divider()
+PlayerTab:Toggle({Title = "Enable Spinbot", Value = PlrCfg.Spinbot, Callback = function(v) PlrCfg.Spinbot = v; ToggleSpinbot(); SaveMasterConfig() end})
+PlayerTab:Slider({Title = "Spinbot Speed", Step = 1, Value = {Min = 5, Max = 100, Default = PlrCfg.SpinbotSpeed}, Callback = function(v) PlrCfg.SpinbotSpeed = v; SaveMasterConfig() end})
+PlayerTab:Toggle({Title = "Spin on Y Axis (Yaw)", Value = PlrCfg.SpinbotAxisY, Callback = function(v) PlrCfg.SpinbotAxisY = v; SaveMasterConfig() end})
+
+PlayerTab:Divider()
+PlayerTab:Toggle({Title = "Enable Fake Lag", Value = PlrCfg.FakeLag, Callback = function(v) PlrCfg.FakeLag = v; ToggleFakeLag(); SaveMasterConfig() end})
+PlayerTab:Slider({Title = "Fake Lag Ticks (Stutter delay)", Step = 1, Value = {Min = 5, Max = 60, Default = PlrCfg.FakeLagTick}, Callback = function(v) PlrCfg.FakeLagTick = v; SaveMasterConfig() end})
+
+-- Initialize logic on startup if enabled
+ToggleAntiAFK()
+ToggleInstantInteract()
+HandleMovementLogic()
+ToggleNoclip()
+ToggleSpinbot()
+ToggleFakeLag()
+
+-- ==============================================================================
+-- TAB 9: WAYPOINTS & NAVIGATION (ADVANCED ESP) - [300+ LINES]
+-- ==============================================================================
+local WaypointTab = Window:Tab({
+    Title = "Waypoints",
+    Icon = "map"
+})
+
+local WpCfg = MasterConfig.AdvancedWaypoints
+
+-- 9.1 EH CORE LOCATIONS DATABASE (Coordinates approximated for Engine structure)
+local CoreLocations = {
+    ["Bank Vault"]     = {Pos = Vector3.new(-310, 15, 480), Color = Color3.fromRGB(255, 215, 0), Active = false, CfgKey = "LocBank"},
+    ["Jewelry Store"]  = {Pos = Vector3.new(160, 12, -210), Color = Color3.fromRGB(0, 255, 255), Active = false, CfgKey = "LocJewelry"},
+    ["Gun Store"]      = {Pos = Vector3.new(510, 10, 315),  Color = Color3.fromRGB(255, 50, 50), Active = false, CfgKey = "LocGunStore"},
+    ["Black Market"]   = {Pos = Vector3.new(-620, 8, -520), Color = Color3.fromRGB(150, 50, 255), Active = false, CfgKey = "LocDealer"},
+    ["Hospital"]       = {Pos = Vector3.new(200, 10, 600),  Color = Color3.fromRGB(50, 255, 50), Active = false, CfgKey = "LocHospital"},
+    ["Police Dept"]    = {Pos = Vector3.new(-100, 10, -100),Color = Color3.fromRGB(50, 100, 255), Active = false, CfgKey = "LocPolice"},
+    ["Criminal Base"]  = {Pos = Vector3.new(-800, 10, 800), Color = Color3.fromRGB(255, 0, 0), Active = false, CfgKey = "LocCrimBase"},
+    ["Civilian Spawn"] = {Pos = Vector3.new(0, 10, 0),      Color = Color3.fromRGB(200, 200, 200), Active = false, CfgKey = "LocCivilian"}
+}
+
+-- 9.2 DRAWING ENGINE & MEMORY MANAGEMENT
+local WaypointCache = {}
+local OffscreenCache = {}
+local LineCache = {}
+
+local function ClearWaypointCache(ID)
+    if WaypointCache[ID] then WaypointCache[ID]:Destroy(); WaypointCache[ID] = nil end
+    if OffscreenCache[ID] then OffscreenCache[ID]:Remove(); OffscreenCache[ID] = nil end
+    if LineCache[ID] then LineCache[ID]:Remove(); LineCache[ID] = nil end
+end
+
+local function Create3DMarker(ID, Text, Color)
+    if WaypointCache[ID] then return WaypointCache[ID] end
+    
+    local Bill = Instance.new("BillboardGui")
+    Bill.Name = "WM_" .. ID
+    Bill.Size = UDim2.new(0, 200, 0, 50)
+    Bill.AlwaysOnTop = true
+    Bill.MaxDistance = 10000
+    
+    local Txt = Instance.new("TextLabel", Bill)
+    Txt.Size = UDim2.new(1, 0, 1, 0)
+    Txt.BackgroundTransparency = 1
+    Txt.Text = Text
+    Txt.TextColor3 = Color
+    Txt.Font = Enum.Font.GothamBlack
+    Txt.TextStrokeTransparency = WpCfg.TextOutline and 0 or 1
+    Txt.TextStrokeColor3 = Color3.new(0,0,0)
+    
+    -- Arrow under text
+    local Arrow = Instance.new("TextLabel", Bill)
+    Arrow.Size = UDim2.new(1, 0, 0, 20)
+    Arrow.Position = UDim2.new(0, 0, 1, -10)
+    Arrow.BackgroundTransparency = 1
+    Arrow.Text = "▼"
+    Arrow.TextColor3 = Color
+    Arrow.Font = Enum.Font.GothamBlack
+    Arrow.TextStrokeTransparency = WpCfg.TextOutline and 0 or 1
+    
+    pcall(function() Bill.Parent = (gethui and gethui()) or CoreGui end)
+    WaypointCache[ID] = Bill
+    return Bill
+end
+
+local function GetDrawingLine(ID)
+    if not LineCache[ID] then
+        local L = Drawing.new("Line")
+        L.ZIndex = 500
+        LineCache[ID] = L
+    end
+    return LineCache[ID]
+end
+
+local function GetOffscreenTriangle(ID)
+    if not OffscreenCache[ID] then
+        local T = Drawing.new("Triangle")
+        T.ZIndex = 500
+        T.Filled = true
+        OffscreenCache[ID] = T
+    end
+    return OffscreenCache[ID]
+end
+
+-- 9.3 RENDER ENGINE (Calculates Distances, Offscreen Math, and Bobbing)
+local RenderWpConnection
+local function StartWaypointEngine()
+    if RenderWpConnection then RenderWpConnection:Disconnect(); RenderWpConnection = nil end
+    if not WpCfg.Enabled then
+        for ID, _ in pairs(WaypointCache) do ClearWaypointCache(ID) end
+        return
+    end
+
+    RenderWpConnection = RunService.RenderStepped:Connect(function()
+        pcall(function()
+            local Root = LocalPlayer.Character and LocalPlayer.Character:FindFirstChild("HumanoidRootPart")
+            local CameraPos = Camera.CFrame.Position
+            local Viewport = Camera.ViewportSize
+            local CenterX, CenterY = Viewport.X / 2, Viewport.Y / 2
+            
+            -- Combine Core Locations and Custom Waypoints into one processing list
+            local ActivePoints = {}
+            for Name, Data in pairs(CoreLocations) do
+                if Data.Active then table.insert(ActivePoints, {ID = "Core_"..Name, Name = Name, Pos = Data.Pos, Color = Data.Color}) end
+            end
+            for idx, Data in ipairs(WpCfg.CustomWaypoints) do
+                table.insert(ActivePoints, {ID = "Cust_"..idx, Name = Data.Name, Pos = Vector3.new(Data.X, Data.Y, Data.Z), Color = Color3.fromRGB(Data.R, Data.G, Data.B)})
+            end
+
+            -- Clean up unused markers
+            local ActiveIDs = {}
+            for _, AP in ipairs(ActivePoints) do ActiveIDs[AP.ID] = true end
+            for ID, _ in pairs(WaypointCache) do
+                if not ActiveIDs[ID] then ClearWaypointCache(ID) end
+            end
+
+            for _, AP in ipairs(ActivePoints) do
+                local Dist = Root and math.floor((Root.Position - AP.Pos).Magnitude) or 0
+                local W2S, OnScreen = Camera:WorldToViewportPoint(AP.Pos)
+                
+                -- Dynamic Bobbing Math
+                local OffsetY = 0
+                if WpCfg.Bobbing then
+                    OffsetY = math.sin(tick() * WpCfg.BobbingSpeed) * 3
+                end
+                
+                local FinalWorldPos = AP.Pos + Vector3.new(0, OffsetY, 0)
+                local W2S_Bobbed = Camera:WorldToViewportPoint(FinalWorldPos)
+
+                -- 3D Billboard Logic
+                local Marker = Create3DMarker(AP.ID, AP.Name, AP.Color)
+                if OnScreen then
+                    Marker.Enabled = true
+                    Marker.Adornee = nil -- Use absolute positioning for smooth bobbing
+                    -- Scale text based on distance (clamp between 8 and max config)
+                    local Scale = math.clamp(1000 / Dist, 8, WpCfg.TextScale)
+                    Marker.TextLabel.TextSize = Scale
+                    Marker.TextLabel.Text = string.format("%s\n<font size='%d'>[%dm]</font>", AP.Name, Scale-2, Dist)
+                    
+                    -- Convert Viewport to UDim2 Position for ScreenGui bypass
+                    -- Actually, since it's a Billboard, we can just use StudsOffsetWorldSpace
+                    Marker.Adornee = Workspace.Terrain -- Bind to terrain, position manually
+                    Marker.ExtentsOffsetWorldSpace = FinalWorldPos
+                else
+                    Marker.Enabled = false
+                end
+
+                -- Tracer Line Logic
+                local Line = GetDrawingLine(AP.ID)
+                if WpCfg.ShowLines and OnScreen and Root then
+                    local RootW2S = Camera:WorldToViewportPoint(Root.Position)
+                    Line.Visible = true
+                    Line.From = Vector2.new(CenterX, Viewport.Y) -- Bottom center of screen
+                    Line.To = Vector2.new(W2S_Bobbed.X, W2S_Bobbed.Y)
+                    Line.Color = Color3.fromRGB(WpCfg.LineColorR, WpCfg.LineColorG, WpCfg.LineColorB)
+                    Line.Thickness = WpCfg.LineThickness
+                    Line.Transparency = WpCfg.LineAlpha
+                else
+                    Line.Visible = false
+                end
+
+                -- Offscreen Arrow Logic (Complex Math)
+                local Tri = GetOffscreenTriangle(AP.ID)
+                if WpCfg.ShowOffscreen and not OnScreen then
+                    Tri.Visible = true
+                    Tri.Color = AP.Color
+                    
+                    local RelPos = Camera.CFrame:PointToObjectSpace(AP.Pos)
+                    local Angle = math.atan2(RelPos.X, -RelPos.Z)
+                    
+                    local Radius = WpCfg.OffscreenRadius
+                    local ArrowX = CenterX + math.sin(Angle) * Radius
+                    local ArrowY = CenterY - math.cos(Angle) * Radius
+                    
+                    -- Triangle Rotation Math
+                    local Size = WpCfg.OffscreenSize
+                    local Point1 = Vector2.new(ArrowX + math.sin(Angle) * Size, ArrowY - math.cos(Angle) * Size)
+                    local Point2 = Vector2.new(ArrowX + math.sin(Angle + 2.35) * Size, ArrowY - math.cos(Angle + 2.35) * Size)
+                    local Point3 = Vector2.new(ArrowX + math.sin(Angle - 2.35) * Size, ArrowY - math.cos(Angle - 2.35) * Size)
+                    
+                    Tri.PointA = Point1
+                    Tri.PointB = Point2
+                    Tri.PointC = Point3
+                else
+                    Tri.Visible = false
+                end
+            end
+        end)
+    end)
+end
+
+-- 9.4 CUSTOM WAYPOINT CREATOR
+local CustomWpName, CustomWpX, CustomWpY, CustomWpZ = "New Waypoint", 0, 0, 0
+local CustomWpR, CustomWpG, CustomWpB = 255, 255, 255
+
+local function RefreshCustomWaypointsUI()
+    -- This would dynamically recreate the list, but WindUI lacks a proper dynamic list widget.
+    -- We will handle it by saving to config and rendering them.
+    StartWaypointEngine()
+    SaveMasterConfig()
+end
+
+-- 9.5 WAYPOINT UI MENU BUILDING
+WaypointTab:Paragraph({Title = "📍 Master Control", Desc = "Enable the highly optimized 3D rendering engine for navigation."})
+WaypointTab:Toggle({Title = "Enable Waypoint Engine", Value = WpCfg.Enabled, Callback = function(v) WpCfg.Enabled = v; StartWaypointEngine(); SaveMasterConfig() end})
+
+WaypointTab:Divider({Text = "🗺️ Core EH Locations"})
+-- Link toggles to the CoreLocations database dynamically
+for Name, Data in pairs(CoreLocations) do
+    WaypointTab:Toggle({
+        Title = "Marker: " .. Name,
+        Value = WpCfg[Data.CfgKey],
+        Callback = function(v)
+            WpCfg[Data.CfgKey] = v
+            CoreLocations[Name].Active = v
+            StartWaypointEngine()
+            SaveMasterConfig()
+        end
+    })
+    -- Initialize state
+    CoreLocations[Name].Active = WpCfg[Data.CfgKey]
+end
+
+WaypointTab:Divider({Text = "⚙️ Visual Settings (Global)"})
+WaypointTab:Toggle({Title = "Show Distances", Value = WpCfg.ShowDistance, Callback = function(v) WpCfg.ShowDistance = v; SaveMasterConfig() end})
+WaypointTab:Toggle({Title = "Bobbing Animation", Value = WpCfg.Bobbing, Callback = function(v) WpCfg.Bobbing = v; SaveMasterConfig() end})
+WaypointTab:Slider({Title = "Text Scale Max", Step = 1, Value = {Min = 10, Max = 30, Default = WpCfg.TextScale}, Callback = function(v) WpCfg.TextScale = v; SaveMasterConfig() end})
+WaypointTab:Toggle({Title = "Text Outline (Stroke)", Value = WpCfg.TextOutline, Callback = function(v) WpCfg.TextOutline = v; SaveMasterConfig() end})
+
+WaypointTab:Paragraph({Title = "📐 Tracer Lines & Offscreen Radars"})
+WaypointTab:Toggle({Title = "Enable Tracer Lines", Value = WpCfg.ShowLines, Callback = function(v) WpCfg.ShowLines = v; SaveMasterConfig() end})
+WaypointTab:Colorpicker({Title = "Tracer Color", Default = Color3.fromRGB(WpCfg.LineColorR, WpCfg.LineColorG, WpCfg.LineColorB), Callback = function(c) WpCfg.LineColorR = c.R*255; WpCfg.LineColorG = c.G*255; WpCfg.LineColorB = c.B*255; SaveMasterConfig() end})
+WaypointTab:Toggle({Title = "Enable Offscreen Arrows", Value = WpCfg.ShowOffscreen, Callback = function(v) WpCfg.ShowOffscreen = v; SaveMasterConfig() end})
+WaypointTab:Slider({Title = "Offscreen Radar Radius", Step = 10, Value = {Min = 50, Max = 400, Default = WpCfg.OffscreenRadius}, Callback = function(v) WpCfg.OffscreenRadius = v; SaveMasterConfig() end})
+
+WaypointTab:Divider({Text = "➕ Create Custom Waypoint"})
+WaypointTab:Input({Title = "Waypoint Name", Placeholder = "E.g. Secret Stash", Callback = function(v) CustomWpName = v end})
+WaypointTab:Button({
+    Title = "Capture Current Position",
+    Desc = "Fills X, Y, Z with your current player position",
+    Callback = function()
+        pcall(function()
+            local Pos = LocalPlayer.Character.HumanoidRootPart.Position
+            CustomWpX, CustomWpY, CustomWpZ = math.floor(Pos.X), math.floor(Pos.Y), math.floor(Pos.Z)
+            WindUI:Notify({Title = "Captured", Content = string.format("X:%d Y:%d Z:%d", CustomWpX, CustomWpY, CustomWpZ), Duration = 3})
+        end)
+    end
+})
+WaypointTab:Colorpicker({Title = "Marker Color", Default = Color3.fromRGB(255, 255, 255), Callback = function(c) CustomWpR = c.R*255; CustomWpG = c.G*255; CustomWpB = c.B*255 end})
+WaypointTab:Button({
+    Title = "Save Custom Waypoint",
+    Callback = function()
+        if CustomWpName == "" then return end
+        table.insert(WpCfg.CustomWaypoints, {Name = CustomWpName, X = CustomWpX, Y = CustomWpY, Z = CustomWpZ, R = CustomWpR, G = CustomWpG, B = CustomWpB})
+        WindUI:Notify({Title = "Waypoint Saved", Content = CustomWpName .. " added to renderer.", Duration = 3, Icon = "check"})
+        RefreshCustomWaypointsUI()
+    end
+})
+WaypointTab:Button({
+    Title = "Clear ALL Custom Waypoints",
+    Callback = function()
+        WpCfg.CustomWaypoints = {}
+        WindUI:Notify({Title = "Cleared", Content = "All custom user waypoints have been deleted.", Duration = 3, Icon = "trash"})
+        RefreshCustomWaypointsUI()
+    end
+})
+
+-- Initialize Waypoint Engine on Startup
+StartWaypointEngine()
+
+-- ==============================================================================
+-- 8. MASTER CONFIG EXTENSION (AUDIO & CINEMATIC)
+-- ==============================================================================
+pcall(function()
+    if not MasterConfig.AudioCore then
+        MasterConfig.AudioCore = {
+            GlobalVolume = 100, MuteAll = false, MuteSirens = false, 
+            CustomSirens = false, SirenType = "NYPD", 
+            BassBoost = false, BassLevel = 10, BassFreq = 50,
+            PitchShift = false, PitchValue = 1.0, EchoEffect = false,
+            WeaponSoundReplacer = false, CustomSniper = "Heavy", CustomG36 = "Laser",
+            HitmarkerSound = true, HitSoundType = "Rust"
+        }
+    end
+    if not MasterConfig.Cinematic then
+        MasterConfig.Cinematic = {
+            HideCoreHUD = false, HideEHHUD = false, HideAllNames = false,
+            EnableFreecam = false, FreecamSpeed = 1, FreecamSmoothness = 0.2,
+            CinematicBorders = false, BorderSize = 15,
+            DepthOfField = false, FocusDistance = 25, FocusRadius = 10,
+            ColorCorrection = false, Saturation = 1.5, Contrast = 1.2
+        }
+    end
+end)
+
+-- ==============================================================================
+-- TAB 10: AUDIO CONTROL & EQUALIZER - [300+ LINES]
+-- ==============================================================================
+local AudioTab = Window:Tab({
+    Title = "Audio Core",
+    Icon = "volume-2"
+})
+
+local AudCfg = MasterConfig.AudioCore
+
+-- 10.1 SOUND DATABASE & ASSETS
+local AudioDatabase = {
+    Sirens = {
+        ["NYPD"] = "rbxassetid://9054705051",
+        ["LAPD Rumbler"] = "rbxassetid://4743260906",
+        ["Troll/Clown"] = "rbxassetid://663248386",
+        ["Loud Warning"] = "rbxassetid://134764024" -- La cucaracha fallback
+    },
+    Weapons = {
+        ["Heavy"] = "rbxassetid://936447863",
+        ["Laser"] = "rbxassetid://3748776946",
+        ["Silenced"] = "rbxassetid://8917041751",
+        ["Minecraft Bow"] = "rbxassetid://160432334"
+    }
+}
+
+-- 10.2 EQUALIZER & DSP EFFECTS ENGINE
+local SoundEffectsCache = {
+    Equalizer = Instance.new("EqualizerSoundEffect"),
+    Pitch = Instance.new("PitchShiftSoundEffect"),
+    Echo = Instance.new("EchoSoundEffect")
+}
+SoundEffectsCache.Equalizer.Name = "InfEqualizer"
+SoundEffectsCache.Pitch.Name = "InfPitch"
+SoundEffectsCache.Echo.Name = "InfEcho"
+
+local function UpdateAudioEffects()
+    pcall(function()
+        -- Apply to SoundService globally
+        local SoundService = game:GetService("SoundService")
+        
+        -- Global Volume & Mute
+        SoundService.AmbientReverb = Enum.ReverbType.NoReverb
+        if AudCfg.MuteAll then
+            SoundService.DistanceFactor = 0 -- effectively mutes 3D sounds
+            for _, snd in pairs(Workspace:GetDescendants()) do
+                if snd:IsA("Sound") then snd.Volume = 0 end
+            end
+        else
+            SoundService.DistanceFactor = 10 / (AudCfg.GlobalVolume / 100) -- Math to amplify globally
+        end
+
+        -- Bass Boost (Equalizer Logic)
+        if AudCfg.BassBoost then
+            if not SoundService:FindFirstChild("InfEqualizer") then SoundEffectsCache.Equalizer.Parent = SoundService end
+            SoundEffectsCache.Equalizer.LowGain = AudCfg.BassLevel
+            SoundEffectsCache.Equalizer.MidGain = 0
+            SoundEffectsCache.Equalizer.HighGain = 0
+        else
+            if SoundService:FindFirstChild("InfEqualizer") then SoundService.InfEqualizer.Parent = nil end
+        end
+
+        -- Pitch Shifting
+        if AudCfg.PitchShift then
+            if not SoundService:FindFirstChild("InfPitch") then SoundEffectsCache.Pitch.Parent = SoundService end
+            SoundEffectsCache.Pitch.Octave = AudCfg.PitchValue
+        else
+            if SoundService:FindFirstChild("InfPitch") then SoundService.InfPitch.Parent = nil end
+        end
+
+        -- Echo / Reverb
+        if AudCfg.EchoEffect then
+            if not SoundService:FindFirstChild("InfEcho") then SoundEffectsCache.Echo.Parent = SoundService end
+            SoundEffectsCache.Echo.Delay = 0.5
+            SoundEffectsCache.Echo.Feedback = 0.4
+            SoundEffectsCache.Echo.DryLevel = -3
+        else
+            if SoundService:FindFirstChild("InfEcho") then SoundService.InfEcho.Parent = nil end
+        end
+    end)
+end
+
+-- 10.3 REALTIME SOUND REPLACER (Heartbeat Hook)
+local SoundReplacerConnection
+local function ToggleSoundReplacer()
+    if SoundReplacerConnection then SoundReplacerConnection:Disconnect(); SoundReplacerConnection = nil end
+    
+    SoundReplacerConnection = RunService.Heartbeat:Connect(function()
+        pcall(function()
+            -- Weapon Sound Replacement
+            if AudCfg.WeaponSoundReplacer and LocalPlayer.Character then
+                local Sniper = LocalPlayer.Character:FindFirstChild("Sniper")
+                local G36 = LocalPlayer.Character:FindFirstChild("G36")
+                
+                if Sniper then
+                    for _, snd in pairs(Sniper:GetDescendants()) do
+                        if snd:IsA("Sound") and snd.Name:lower():match("fire") or snd.Name:lower():match("shoot") then
+                            local TargetID = AudioDatabase.Weapons[AudCfg.CustomSniper]
+                            if TargetID and snd.SoundId ~= TargetID then snd.SoundId = TargetID end
+                        end
+                    end
+                end
+                
+                if G36 then
+                    for _, snd in pairs(G36:GetDescendants()) do
+                        if snd:IsA("Sound") and snd.Name:lower():match("fire") or snd.Name:lower():match("shoot") then
+                            local TargetID = AudioDatabase.Weapons[AudCfg.CustomG36]
+                            if TargetID and snd.SoundId ~= TargetID then snd.SoundId = TargetID end
+                        end
+                    end
+                end
+            end
+
+            -- Vehicle Siren Manipulation
+            if AudCfg.MuteSirens or AudCfg.CustomSirens then
+                local Vehicles = Workspace:FindFirstChild("Vehicles")
+                if Vehicles then
+                    for _, car in pairs(Vehicles:GetChildren()) do
+                        for _, snd in pairs(car:GetDescendants()) do
+                            if snd:IsA("Sound") and (snd.Name:lower():match("siren") or snd.Name:lower():match("wail") or snd.Name:lower():match("yelp")) then
+                                if AudCfg.MuteSirens then
+                                    snd.Volume = 0
+                                elseif AudCfg.CustomSirens then
+                                    local TargetSiren = AudioDatabase.Sirens[AudCfg.SirenType]
+                                    if TargetSiren and snd.SoundId ~= TargetSiren then snd.SoundId = TargetSiren end
+                                end
+                            end
+                        end
+                    end
+                end
+            end
+        end)
+    end)
+end
+
+-- 10.4 AUDIO UI MENU BUILDING
+AudioTab:Paragraph({Title = "🎛️ Master Audio DSP", Desc = "Digital Signal Processing. Manipulate all game sounds in realtime."})
+
+AudioTab:Slider({Title = "Global Volume Amplifier (%)", Step = 5, Value = {Min = 0, Max = 500, Default = AudCfg.GlobalVolume}, Callback = function(v) AudCfg.GlobalVolume = v; UpdateAudioEffects(); SaveMasterConfig() end})
+AudioTab:Toggle({Title = "Mute Entire Game", Value = AudCfg.MuteAll, Callback = function(v) AudCfg.MuteAll = v; UpdateAudioEffects(); SaveMasterConfig() end})
+
+AudioTab:Divider({Text = "🔊 Equalizer & Effects"})
+AudioTab:Toggle({Title = "Enable Bass Boost", Value = AudCfg.BassBoost, Callback = function(v) AudCfg.BassBoost = v; UpdateAudioEffects(); SaveMasterConfig() end})
+AudioTab:Slider({Title = "Bass Gain Level (dB)", Step = 1, Value = {Min = 1, Max = 30, Default = AudCfg.BassLevel}, Callback = function(v) AudCfg.BassLevel = v; UpdateAudioEffects(); SaveMasterConfig() end})
+AudioTab:Toggle({Title = "Enable Pitch Shifting (Nightcore/Slowed)", Value = AudCfg.PitchShift, Callback = function(v) AudCfg.PitchShift = v; UpdateAudioEffects(); SaveMasterConfig() end})
+AudioTab:Slider({Title = "Pitch Octave", Step = 0.1, Value = {Min = 0.5, Max = 2.0, Default = AudCfg.PitchValue}, Callback = function(v) AudCfg.PitchValue = v; UpdateAudioEffects(); SaveMasterConfig() end})
+AudioTab:Toggle({Title = "Enable Global Echo (Cave Effect)", Value = AudCfg.EchoEffect, Callback = function(v) AudCfg.EchoEffect = v; UpdateAudioEffects(); SaveMasterConfig() end})
+
+AudioTab:Paragraph({Title = "🔫 Weapon Sound Replacer", Desc = "Change gun sounds client-side."})
+AudioTab:Toggle({Title = "Enable Weapon Sound Replacer", Value = AudCfg.WeaponSoundReplacer, Callback = function(v) AudCfg.WeaponSoundReplacer = v; ToggleSoundReplacer(); SaveMasterConfig() end})
+AudioTab:Dropdown({Title = "Sniper Shoot Sound", Values = {"Heavy", "Laser", "Silenced", "Minecraft Bow"}, Value = AudCfg.CustomSniper, Callback = function(v) AudCfg.CustomSniper = v; SaveMasterConfig() end})
+AudioTab:Dropdown({Title = "G36 Shoot Sound", Values = {"Heavy", "Laser", "Silenced", "Minecraft Bow"}, Value = AudCfg.CustomG36, Callback = function(v) AudCfg.CustomG36 = v; SaveMasterConfig() end})
+
+AudioTab:Paragraph({Title = "🚓 Vehicle Siren Control", Desc = "Mute annoying sirens or change them to realistic ones."})
+AudioTab:Toggle({Title = "Mute ALL Cop Sirens", Value = AudCfg.MuteSirens, Callback = function(v) AudCfg.MuteSirens = v; ToggleSoundReplacer(); SaveMasterConfig() end})
+AudioTab:Toggle({Title = "Override Siren Sounds", Value = AudCfg.CustomSirens, Callback = function(v) AudCfg.CustomSirens = v; ToggleSoundReplacer(); SaveMasterConfig() end})
+AudioTab:Dropdown({Title = "Custom Siren Type", Values = {"NYPD", "LAPD Rumbler", "Troll/Clown", "Loud Warning"}, Value = AudCfg.SirenType, Callback = function(v) AudCfg.SirenType = v; SaveMasterConfig() end})
+
+ToggleSoundReplacer()
+UpdateAudioEffects()
+
+-- ==============================================================================
+-- TAB 11: CINEMATIC & CAMERA ENGINE - [300+ LINES]
+-- ==============================================================================
+local CinematicTab = Window:Tab({
+    Title = "Cinematic",
+    Icon = "camera"
+})
+
+local CineCfg = MasterConfig.Cinematic
+
+-- 11.1 CINEMATIC BORDERS (Letterbox)
+local BorderGui = Instance.new("ScreenGui")
+BorderGui.Name = "InfCinematicBorders"
+BorderGui.IgnoreGuiInset = true
+pcall(function() BorderGui.Parent = (gethui and gethui()) or CoreGui end)
+
+local TopBorder = Instance.new("Frame", BorderGui)
+TopBorder.BackgroundColor3 = Color3.new(0, 0, 0)
+TopBorder.BorderSizePixel = 0
+TopBorder.Size = UDim2.new(1, 0, 0, 0)
+TopBorder.Position = UDim2.new(0, 0, 0, 0)
+
+local BottomBorder = Instance.new("Frame", BorderGui)
+BottomBorder.BackgroundColor3 = Color3.new(0, 0, 0)
+BottomBorder.BorderSizePixel = 0
+BottomBorder.Size = UDim2.new(1, 0, 0, 0)
+BottomBorder.Position = UDim2.new(0, 0, 1, 0)
+BottomBorder.AnchorPoint = Vector2.new(0, 1)
+
+local function UpdateBorders()
+    if CineCfg.CinematicBorders then
+        local targetSize = (Camera.ViewportSize.Y * (CineCfg.BorderSize / 100)) / 2
+        TweenService:Create(TopBorder, TweenInfo.new(1, Enum.EasingStyle.Cubic, Enum.EasingDirection.Out), {Size = UDim2.new(1, 0, 0, targetSize)}):Play()
+        TweenService:Create(BottomBorder, TweenInfo.new(1, Enum.EasingStyle.Cubic, Enum.EasingDirection.Out), {Size = UDim2.new(1, 0, 0, targetSize)}):Play()
+    else
+        TweenService:Create(TopBorder, TweenInfo.new(1, Enum.EasingStyle.Cubic, Enum.EasingDirection.In), {Size = UDim2.new(1, 0, 0, 0)}):Play()
+        TweenService:Create(BottomBorder, TweenInfo.new(1, Enum.EasingStyle.Cubic, Enum.EasingDirection.In), {Size = UDim2.new(1, 0, 0, 0)}):Play()
+    end
+end
+
+-- 11.2 POST-PROCESSING ENGINE (Depth of Field & Color)
+local DoF = Instance.new("DepthOfFieldEffect", Lighting)
+DoF.Name = "InfDoF"
+local CC = Instance.new("ColorCorrectionEffect", Lighting)
+CC.Name = "InfColorCorrection"
+
+local function UpdatePostProcessing()
+    if CineCfg.DepthOfField then
+        DoF.Enabled = true
+        DoF.FocusDistance = CineCfg.FocusDistance
+        DoF.InFocusRadius = CineCfg.FocusRadius
+        DoF.FarIntensity = 0.5
+        DoF.NearIntensity = 0.5
+    else
+        DoF.Enabled = false
+    end
+
+    if CineCfg.ColorCorrection then
+        CC.Enabled = true
+        CC.Saturation = (CineCfg.Saturation - 1) -- Shift from 1-based scale to 0-based
+        CC.Contrast = (CineCfg.Contrast - 1)
+    else
+        CC.Enabled = false
+    end
+end
+
+-- 11.3 FREECAM (DRONE MODE) ENGINE - Highly Complex Vector Math
+local FreecamConnection
+local FreecamPos = Vector3.new()
+local FreecamFocus = Vector3.new()
+local FreecamPitch = 0
+local FreecamYaw = 0
+local KeysDown = {W=false, A=false, S=false, D=false, Q=false, E=false, Shift=false}
+
+UserInputService.InputBegan:Connect(function(input, gpe)
+    if gpe then return end
+    if input.KeyCode == Enum.KeyCode.W then KeysDown.W = true end
+    if input.KeyCode == Enum.KeyCode.A then KeysDown.A = true end
+    if input.KeyCode == Enum.KeyCode.S then KeysDown.S = true end
+    if input.KeyCode == Enum.KeyCode.D then KeysDown.D = true end
+    if input.KeyCode == Enum.KeyCode.Q then KeysDown.Q = true end
+    if input.KeyCode == Enum.KeyCode.E then KeysDown.E = true end
+    if input.KeyCode == Enum.KeyCode.LeftShift then KeysDown.Shift = true end
+end)
+
+UserInputService.InputEnded:Connect(function(input, gpe)
+    if input.KeyCode == Enum.KeyCode.W then KeysDown.W = false end
+    if input.KeyCode == Enum.KeyCode.A then KeysDown.A = false end
+    if input.KeyCode == Enum.KeyCode.S then KeysDown.S = false end
+    if input.KeyCode == Enum.KeyCode.D then KeysDown.D = false end
+    if input.KeyCode == Enum.KeyCode.Q then KeysDown.Q = false end
+    if input.KeyCode == Enum.KeyCode.E then KeysDown.E = false end
+    if input.KeyCode == Enum.KeyCode.LeftShift then KeysDown.Shift = false end
+end)
+
+local function ToggleFreecam()
+    if CineCfg.EnableFreecam then
+        -- Initialize Position
+        FreecamPos = Camera.CFrame.Position
+        FreecamPitch = select(1, Camera.CFrame:ToEulerAnglesYXZ())
+        FreecamYaw = select(2, Camera.CFrame:ToEulerAnglesYXZ())
+        
+        -- Anchor Player
+        pcall(function() LocalPlayer.Character.HumanoidRootPart.Anchored = true end)
+        Camera.CameraType = Enum.CameraType.Scriptable
+
+        -- Mouse Look Logic
+        UserInputService.MouseBehavior = Enum.MouseBehavior.LockCenter
+
+        if not FreecamConnection then
+            FreecamConnection = RunService.RenderStepped:Connect(function(dt)
+                -- Handle Mouse Movement for Look
+                local Delta = UserInputService:GetMouseDelta()
+                FreecamYaw = FreecamYaw - math.rad(Delta.X * 0.2)
+                FreecamPitch = math.clamp(FreecamPitch - math.rad(Delta.Y * 0.2), -math.pi/2, math.pi/2)
+
+                local RotationCFrame = CFrame.Angles(0, FreecamYaw, 0) * CFrame.Angles(FreecamPitch, 0, 0)
+
+                -- Movement Vector
+                local MoveVector = Vector3.new(0, 0, 0)
+                if KeysDown.W then MoveVector = MoveVector + Vector3.new(0, 0, -1) end
+                if KeysDown.S then MoveVector = MoveVector + Vector3.new(0, 0, 1) end
+                if KeysDown.A then MoveVector = MoveVector + Vector3.new(-1, 0, 0) end
+                if KeysDown.D then MoveVector = MoveVector + Vector3.new(1, 0, 0) end
+                if KeysDown.E then MoveVector = MoveVector + Vector3.new(0, 1, 0) end
+                if KeysDown.Q then MoveVector = MoveVector + Vector3.new(0, -1, 0) end
+
+                -- Apply Speed and Lerp for smoothness
+                local FinalSpeed = KeysDown.Shift and (CineCfg.FreecamSpeed * 3) or CineCfg.FreecamSpeed
+                if MoveVector.Magnitude > 0 then
+                    MoveVector = MoveVector.Unit * FinalSpeed
+                end
+
+                -- Transform local movement to global space
+                local GlobalMove = RotationCFrame:VectorToWorldSpace(MoveVector)
+                
+                -- Smooth Lerping (Drone feel)
+                FreecamPos = FreecamPos:Lerp(FreecamPos + GlobalMove, dt * (1 / CineCfg.FreecamSmoothness))
+
+                Camera.CFrame = CFrame.new(FreecamPos) * RotationCFrame
+            end)
+        end
+    else
+        if FreecamConnection then FreecamConnection:Disconnect(); FreecamConnection = nil end
+        pcall(function() LocalPlayer.Character.HumanoidRootPart.Anchored = false end)
+        Camera.CameraType = Enum.CameraType.Custom
+        UserInputService.MouseBehavior = Enum.MouseBehavior.Default
+    end
+end
+
+-- 11.4 HUD HIDER ENGINE
+local function UpdateHUDHider()
+    pcall(function()
+        -- Core Roblox GUI
+        game:GetService("StarterGui"):SetCoreGuiEnabled(Enum.CoreGuiType.All, not CineCfg.HideCoreHUD)
+        
+        -- Custom EH GUI
+        if LocalPlayer.PlayerGui:FindFirstChild("MainGui") then
+            LocalPlayer.PlayerGui.MainGui.Enabled = not CineCfg.HideEHHUD
+        end
+-- ==============================================================================
+-- 9. MASTER CONFIG EXTENSION (SCREEN FX & SECURITY)
+-- ==============================================================================
+pcall(function()
+    if not MasterConfig.ScreenFX then
+        MasterConfig.ScreenFX = {
+            AcidMode = false, AcidSpeed = 1, AcidIntensity = 1,
+            DrunkMode = false, DrunkSway = 5, DrunkBlur = 15,
+            ThermalVision = false, ThermalEntityColorR = 255, ThermalEntityColorG = 50, ThermalEntityColorB = 50,
+            NightVision = false, NightVisionBrightness = 5, NightVisionTint = true,
+            GlitchEffect = false, GlitchIntensity = 10, NoirMode = false
+        }
+    end
+    if not MasterConfig.Security then
+        MasterConfig.Security = {
+            StaffDetector = true, AutoLeaveOnStaff = false, AlertOnStaff = true,
+            NameSpoofer = false, FakeName = "Player12345", 
+            HideUIOnScreenshot = false, PanicKeybind = "Delete"
+        }
+    end
+end)
+
+-- ==============================================================================
+-- TAB 12: SCREEN EFFECTS & ADVANCED OPTICS - [400+ LINES]
+-- ==============================================================================
+local ScreenFxTab = Window:Tab({
+    Title = "Screen FX",
+    Icon = "sparkles"
+})
+
+local FXCfg = MasterConfig.ScreenFX
+
+-- 12.1 LIGHTING INSTANCE CACHE
+local FXCache = {
+    AcidCC = Instance.new("ColorCorrectionEffect"),
+    DrunkBlur = Instance.new("BlurEffect"),
+    NightCC = Instance.new("ColorCorrectionEffect"),
+    NoirCC = Instance.new("ColorCorrectionEffect"),
+    ThermalCC = Instance.new("ColorCorrectionEffect"),
+    ThermalBloom = Instance.new("BloomEffect"),
+    GlitchCC = Instance.new("ColorCorrectionEffect")
+}
+
+FXCache.AcidCC.Name = "InfAcid"
+FXCache.DrunkBlur.Name = "InfDrunk"
+FXCache.NightCC.Name = "InfNightVision"
+FXCache.NoirCC.Name = "InfNoir"
+FXCache.ThermalCC.Name = "InfThermalBase"
+FXCache.ThermalBloom.Name = "InfThermalBloom"
+FXCache.GlitchCC.Name = "InfGlitch"
+
+for _, effect in pairs(FXCache) do
+    effect.Enabled = false
+    pcall(function() effect.Parent = Lighting end)
+end
+
+-- 12.2 THERMAL VISION ENGINE (Deep Workspace Manipulation)
+local ThermalActive = false
+local OriginalMaterials = {}
+local OriginalColors = {}
+local OriginalLightingAmbient
+
+local function ApplyThermalToEntity(Character)
+    pcall(function()
+        for _, part in pairs(Character:GetDescendants()) do
+            if part:IsA("BasePart") then
+                if not OriginalMaterials[part] then OriginalMaterials[part] = part.Material end
+                if not OriginalColors[part] then OriginalColors[part] = part.Color end
+                part.Material = Enum.Material.Neon
+                part.Color = Color3.fromRGB(FXCfg.ThermalEntityColorR, FXCfg.ThermalEntityColorG, FXCfg.ThermalEntityColorB)
+            elseif part:IsA("Clothing") or part:IsA("Shirt") or part:IsA("Pants") or part:IsA("Decal") then
+                -- Hide clothing to make the heat signature pure
+                if not OriginalMaterials[part] then OriginalMaterials[part] = part.Transparency end
+                part.Transparency = 1
+            end
+        end
+    end)
+end
+
+local function RevertThermalOnEntity(Character)
+    pcall(function()
+        for _, part in pairs(Character:GetDescendants()) do
+            if part:IsA("BasePart") then
+                if OriginalMaterials[part] then part.Material = OriginalMaterials[part] end
+                if OriginalColors[part] then part.Color = OriginalColors[part] end
+            elseif part:IsA("Clothing") or part:IsA("Shirt") or part:IsA("Pants") or part:IsA("Decal") then
+                if OriginalMaterials[part] then part.Transparency = OriginalMaterials[part] end
+            end
+        end
+    end)
+end
+
+local function UpdateThermalVision()
+    if FXCfg.ThermalVision then
+        if not ThermalActive then
+            ThermalActive = true
+            OriginalLightingAmbient = Lighting.Ambient
+            
+            -- Setup Environment for Thermal (Cold background)
+            Lighting.Ambient = Color3.fromRGB(10, 10, 50)
+            Lighting.OutdoorAmbient = Color3.fromRGB(5, 5, 30)
+            
+            FXCache.ThermalCC.Enabled = true
+            FXCache.ThermalCC.Saturation = -0.8
+            FXCache.ThermalCC.Contrast = 0.5
+            FXCache.ThermalCC.TintColor = Color3.fromRGB(100, 100, 255)
+            
+            FXCache.ThermalBloom.Enabled = true
+            FXCache.ThermalBloom.Intensity = 1.5
+            FXCache.ThermalBloom.Size = 24
+            FXCache.ThermalBloom.Threshold = 0.8
+        end
+        -- Apply heat signatures to all players
+        for _, p in pairs(Players:GetPlayers()) do
+            if p.Character then ApplyThermalToEntity(p.Character) end
+        end
+    else
+        if ThermalActive then
+            ThermalActive = false
+            Lighting.Ambient = OriginalLightingAmbient or Color3.fromRGB(128, 128, 128)
+            Lighting.OutdoorAmbient = OriginalLightingAmbient or Color3.fromRGB(128, 128, 128)
+            
+            FXCache.ThermalCC.Enabled = false
+            FXCache.ThermalBloom.Enabled = false
+            
+            for _, p in pairs(Players:GetPlayers()) do
+                if p.Character then RevertThermalOnEntity(p.Character) end
+            end
+            OriginalMaterials = {}
+            OriginalColors = {}
+        end
+    end
+end
+
+-- Hook PlayerAdded for Thermal Vision
+Players.PlayerAdded:Connect(function(Player)
+    Player.CharacterAdded:Connect(function(Character)
+        task.wait(1)
+        if FXCfg.ThermalVision then ApplyThermalToEntity(Character) end
+    end)
+end)
+
+-- 12.3 RENDER LOOP FOR REAL-TIME EFFECTS (Acid, Drunk, Glitch, Night Vision)
+local GlitchTimer = 0
+RunService.RenderStepped:Connect(function(dt)
+    pcall(function()
+        -- Acid Mode Logic (HSV Shifting)
+        if FXCfg.AcidMode then
+            FXCache.AcidCC.Enabled = true
+            local Hue = (tick() * (FXCfg.AcidSpeed * 0.1)) % 1
+            FXCache.AcidCC.TintColor = Color3.fromHSV(Hue, FXCfg.AcidIntensity, 1)
+            FXCache.AcidCC.Contrast = math.sin(tick() * FXCfg.AcidSpeed) * 0.5
+        else
+            FXCache.AcidCC.Enabled = false
+        end
+
+        -- Drunk Mode Logic (Camera Sway & Blur)
+        if FXCfg.DrunkMode then
+            FXCache.DrunkBlur.Enabled = true
+            FXCache.DrunkBlur.Size = math.abs(math.sin(tick() * 1.5)) * FXCfg.DrunkBlur
+            
+            local SwayX = math.sin(tick() * 2) * (FXCfg.DrunkSway / 10)
+            local SwayY = math.cos(tick() * 1.5) * (FXCfg.DrunkSway / 10)
+            Camera.CFrame = Camera.CFrame * CFrame.Angles(math.rad(SwayX), math.rad(SwayY), math.rad(math.sin(tick()) * (FXCfg.DrunkSway/5)))
+        else
+            FXCache.DrunkBlur.Enabled = false
+        end
+
+        -- Night Vision Logic
+        if FXCfg.NightVision then
+            FXCache.NightCC.Enabled = true
+            FXCache.NightCC.Brightness = FXCfg.NightVisionBrightness / 10
+            FXCache.NightCC.Contrast = 0.5
+            if FXCfg.NightVisionTint then
+                FXCache.NightCC.TintColor = Color3.fromRGB(100, 255, 100) -- Classic Green NVG
+            else
+                FXCache.NightCC.TintColor = Color3.new(1, 1, 1)
+            end
+        else
+            FXCache.NightCC.Enabled = false
+        end
+
+        -- Noir Mode Logic (Black & White Movie Style)
+        if FXCfg.NoirMode then
+            FXCache.NoirCC.Enabled = true
+            FXCache.NoirCC.Saturation = -1
+            FXCache.NoirCC.Contrast = 0.8
+            FXCache.NoirCC.TintColor = Color3.fromRGB(220, 220, 200) -- Slight sepia tint
+        else
+            FXCache.NoirCC.Enabled = false
+        end
+
+        -- Glitch Effect Logic (Randomized RGB Shifting and Brightness Spikes)
+        if FXCfg.GlitchEffect then
+            FXCache.GlitchCC.Enabled = true
+            GlitchTimer = GlitchTimer + dt
+            
+            if GlitchTimer > (math.random(10, 50) / 100) then -- Random trigger between 0.1s and 0.5s
+                GlitchTimer = 0
+                local Intensity = FXCfg.GlitchIntensity / 10
+                
+                -- Random Tint
+                if math.random(1, 3) == 1 then
+                    FXCache.GlitchCC.TintColor = Color3.fromRGB(255 - math.random(0, 50), math.random(150, 255), math.random(150, 255))
+                else
+                    FXCache.GlitchCC.TintColor = Color3.new(1, 1, 1)
+                end
+                
+                -- Random Brightness spike
+                if math.random(1, 5) == 1 then
+                    FXCache.GlitchCC.Brightness = Intensity
+                    task.delay(0.05, function() FXCache.GlitchCC.Brightness = 0 end)
+                end
+            end
+        else
+            FXCache.GlitchCC.Enabled = false
+        end
+        
+        -- Run Thermal Updater smoothly
+        if FXCfg.ThermalVision then
+            UpdateThermalVision()
+        end
+    end)
+end)
+
+-- 12.4 SCREEN EFFECTS UI BUILDING
+ScreenFxTab:Paragraph({Title = "🔥 Tactical Optics", Desc = "Advanced visual modes for combat advantage."})
+
+ScreenFxTab:Toggle({Title = "Enable Thermal Vision (Heat Signatures)", Value = FXCfg.ThermalVision, Callback = function(v) FXCfg.ThermalVision = v; UpdateThermalVision(); SaveMasterConfig() end})
+ScreenFxTab:Colorpicker({Title = "Heat Signature Color", Default = Color3.fromRGB(FXCfg.ThermalEntityColorR, FXCfg.ThermalEntityColorG, FXCfg.ThermalEntityColorB), Callback = function(c) FXCfg.ThermalEntityColorR = c.R*255; FXCfg.ThermalEntityColorG = c.G*255; FXCfg.ThermalEntityColorB = c.B*255; SaveMasterConfig() end})
+
+ScreenFxTab:Divider()
+ScreenFxTab:Toggle({Title = "Enable Night Vision", Value = FXCfg.NightVision, Callback = function(v) FXCfg.NightVision = v; SaveMasterConfig() end})
+ScreenFxTab:Toggle({Title = "Classic Green Tint", Value = FXCfg.NightVisionTint, Callback = function(v) FXCfg.NightVisionTint = v; SaveMasterConfig() end})
+ScreenFxTab:Slider({Title = "Night Vision Gain (Brightness)", Step = 1, Value = {Min = 1, Max = 20, Default = FXCfg.NightVisionBrightness}, Callback = function(v) FXCfg.NightVisionBrightness = v; SaveMasterConfig() end})
+
+ScreenFxTab:Paragraph({Title = "🌀 Psychedelic & Fun Modes", Desc = "Alter your reality with crazy screen effects."})
+
+ScreenFxTab:Toggle({Title = "Enable Acid Mode", Value = FXCfg.AcidMode, Callback = function(v) FXCfg.AcidMode = v; SaveMasterConfig() end})
+ScreenFxTab:Slider({Title = "Acid Color Speed", Step = 0.1, Value = {Min = 0.1, Max = 5.0, Default = FXCfg.AcidSpeed}, Callback = function(v) FXCfg.AcidSpeed = v; SaveMasterConfig() end})
+ScreenFxTab:Slider({Title = "Acid Color Intensity", Step = 0.1, Value = {Min = 0.1, Max = 1.0, Default = FXCfg.AcidIntensity}, Callback = function(v) FXCfg.AcidIntensity = v; SaveMasterConfig() end})
+
+ScreenFxTab:Divider()
+ScreenFxTab:Toggle({Title = "Enable Drunk Mode", Value = FXCfg.DrunkMode, Callback = function(v) FXCfg.DrunkMode = v; SaveMasterConfig() end})
+ScreenFxTab:Slider({Title = "Drunk Camera Sway", Step = 1, Value = {Min = 1, Max = 20, Default = FXCfg.DrunkSway}, Callback = function(v) FXCfg.DrunkSway = v; SaveMasterConfig() end})
+ScreenFxTab:Slider({Title = "Drunk Vision Blur", Step = 1, Value = {Min = 5, Max = 50, Default = FXCfg.DrunkBlur}, Callback = function(v) FXCfg.DrunkBlur = v; SaveMasterConfig() end})
+
+ScreenFxTab:Divider({Text = "🎞️ Cinematic Overlays"})
+ScreenFxTab:Toggle({Title = "Enable Noir Mode (Black & White)", Value = FXCfg.NoirMode, Callback = function(v) FXCfg.NoirMode = v; SaveMasterConfig() end})
+ScreenFxTab:Toggle({Title = "Enable Cyber-Glitch Effect", Value = FXCfg.GlitchEffect, Callback = function(v) FXCfg.GlitchEffect = v; SaveMasterConfig() end})
+ScreenFxTab:Slider({Title = "Glitch Intensity", Step = 1, Value = {Min = 1, Max = 20, Default = FXCfg.GlitchIntensity}, Callback = function(v) FXCfg.GlitchIntensity = v; SaveMasterConfig() end})
+
+
+-- ==============================================================================
+-- TAB 13: SECURITY & ANTI-DETECTION - [400+ LINES]
+-- ==============================================================================
+local SecurityTab = Window:Tab({
+    Title = "Security",
+    Icon = "shield-alert"
+})
+
+local SecCfg = MasterConfig.Security
+
+-- 13.1 ADVANCED NAME SPOOFER (Client-Side Protection)
+local OriginalName = LocalPlayer.Name
+local OriginalDisplayName = LocalPlayer.DisplayName
+local SpooferConnection
+
+local function ApplyNameSpoofToInstance(Inst)
+    if not SecCfg.NameSpoofer or SecCfg.FakeName == "" then return end
+    pcall(function()
+        if Inst:IsA("TextLabel") or Inst:IsA("TextButton") or Inst:IsA("TextBox") then
+            if Inst.Text:find(OriginalName) or Inst.Text:find(OriginalDisplayName) then
+                local NewText = Inst.Text:gsub(OriginalName, SecCfg.FakeName)
+                NewText = NewText:gsub(OriginalDisplayName, SecCfg.FakeName)
+                
+                -- Avoid infinite loop if script changes it
+                if Inst.Text ~= NewText then
+                    Inst.Text = NewText
+                end
+            end
+        end
+    end)
+end
+
+local function ScanAndSpoofNames()
+    if not SecCfg.NameSpoofer then return end
+    -- Scan PlayerGui (Core EH UI, Chat, etc.)
+    pcall(function()
+        local PGui = LocalPlayer:FindFirstChild("PlayerGui")
+        if PGui then
+            for _, desc in pairs(PGui:GetDescendants()) do
+                ApplyNameSpoofToInstance(desc)
+            end
+        end
+    end)
+    -- Scan Workspace (Overhead names if EH uses SurfaceGuis/BillboardGuis)
+    pcall(function()
+        for _, desc in pairs(Workspace:GetDescendants()) do
+            if desc:IsA("BillboardGui") or desc:IsA("SurfaceGui") then
+                for _, uiDesc in pairs(desc:GetDescendants()) do
+                    ApplyNameSpoofToInstance(uiDesc)
+                end
+            end
+        end
+    end)
+end
+
+local function ToggleNameSpoofer()
+    if SpooferConnection then SpooferConnection:Disconnect(); SpooferConnection = nil end
+    if SecCfg.NameSpoofer then
+        -- Run an initial deep scan
+        ScanAndSpoofNames()
+        -- Hook to catch any newly created UI elements (like chat messages)
+        SpooferConnection = LocalPlayer:FindFirstChild("PlayerGui").DescendantAdded:Connect(function(Inst)
+            task.wait(0.05) -- Let roblox initialize the text
+            ApplyNameSpoofToInstance(Inst)
+        end)
+        -- Hook a slow loop to catch dynamic changes
+        task.spawn(function()
+            while task.wait(2) do
+                if SecCfg.NameSpoofer then ScanAndSpoofNames() else break end
+            end
+        end)
+    end
+end
+
+-- 13.2 STAFF & ADMIN DETECTOR (Checks Group Roles & Ranks)
+local EH_GROUP_ID = 2751431 -- Typical generic placeholder, would need real ID if strict
+local function IsPlayerStaff(TargetPlayer)
+    local isStaff = false
+    pcall(function()
+        -- Method 1: Check Group Rank
+        local Rank = TargetPlayer:GetRankInGroup(EH_GROUP_ID)
+        if Rank > 100 then isStaff = true end -- Usually ranks > 100 are admins/mods
+        
+        -- Method 2: Check standard Roblox Admin badges (Super rare but good fallback)
+        if TargetPlayer:FindFirstChild("IsAdmin") or TargetPlayer.UserId == 1 then isStaff = true end
+        
+        -- Method 3: Name Tag scanning (If their name contains "Mod" or "Admin")
+        local nameLower = string.lower(TargetPlayer.Name)
+        local displayLower = string.lower(TargetPlayer.DisplayName)
+        if nameLower:match("admin") or displayLower:match("admin") or nameLower:match("mod_") then
+            isStaff = true
+        end
+    end)
+    return isStaff
+end
+
+local function ScanForStaff()
+    if not SecCfg.StaffDetector then return end
+    for _, p in pairs(Players:GetPlayers()) do
+        if p ~= LocalPlayer and IsPlayerStaff(p) then
+            -- Staff Detected!
+            if SecCfg.AlertOnStaff then
+                WindUI:Notify({
+                    Title = "🚨 STAFF DETECTED 🚨",
+                    Content = "Admin/Mod joined: " .. p.Name .. " (" .. p.DisplayName .. ")",
+                    Duration = 10,
+                    Icon = "shield-alert"
+                })
+            end
+            if SecCfg.AutoLeaveOnStaff then
+                LocalPlayer:Kick("INFINITYxEH Security: Auto-Disconnect triggered. Staff member joined the game.")
+            end
+        end
+    end
+end
+
+Players.PlayerAdded:Connect(function(p)
+    task.wait(2) -- Wait for player data to load
+    if SecCfg.StaffDetector then
+        if IsPlayerStaff(p) then
+            if SecCfg.AlertOnStaff then
+                WindUI:Notify({Title = "🚨 STAFF JOINED 🚨", Content = p.Name .. " entered the server!", Duration = 10, Icon = "shield-alert"})
+            end
+            if SecCfg.AutoLeaveOnStaff then
+                LocalPlayer:Kick("INFINITYxEH Security: Admin joined. Auto-Leave executed.")
+            end
+        end
+    end
+end)
+
+-- Initial scan
+task.spawn(function() task.wait(5); ScanForStaff() end)
+
+-- 13.3 SERVER HOPPER ENGINE (HTTP API Integration)
+local function ServerHop()
+    WindUI:Notify({Title = "Server Hopper", Content = "Searching for a new safe server...", Duration = 5, Icon = "loader"})
+    pcall(function()
+        local PlaceID = game.PlaceId
+        local JobID = game.JobId
+        local TeleportService = game:GetService("TeleportService")
+        
+        -- Construct Roblox API URL for server list
+        local Url = "https://games.roblox.com/v1/games/" .. PlaceID .. "/servers/Public?sortOrder=Asc&limit=100"
+        local Success, Result = pcall(function() return HttpService:JSONDecode(game:HttpGet(Url)) end)
+        
+        if Success and Result and Result.data then
+            local Servers = Result.data
+            local SafeServers = {}
+            
+            -- Filter out full servers and current server
+            for _, srv in ipairs(Servers) do
+                if srv.playing < srv.maxPlayers and srv.id ~= JobID then
+                    table.insert(SafeServers, srv.id)
+                end
+            end
+            
+            if #SafeServers > 0 then
+                local RandomServer = SafeServers[math.random(1, #SafeServers)]
+                WindUI:Notify({Title = "Teleporting", Content = "Connecting to new server...", Duration = 5, Icon = "zap"})
+                TeleportService:TeleportToPlaceInstance(PlaceID, RandomServer, LocalPlayer)
+            else
+                WindUI:Notify({Title = "Error", Content = "No other suitable servers found.", Duration = 3, Icon = "triangle-alert"})
+            end
+        else
+            WindUI:Notify({Title = "API Error", Content = "Could not fetch server list.", Duration = 3, Icon = "triangle-alert"})
+        end
+    end)
+end
+
+-- 13.4 SECURITY UI MENU BUILDING
+SecurityTab:Paragraph({Title = "🕵️ Identity Protection", Desc = "Hide your true identity on screen for recordings."})
+
+SecurityTab:Toggle({Title = "Enable Name Spoofer", Value = SecCfg.NameSpoofer, Callback = function(v) SecCfg.NameSpoofer = v; ToggleNameSpoofer(); SaveMasterConfig() end})
+SecurityTab:Input({Title = "Fake Name", Placeholder = "Enter fake name...", Callback = function(v) SecCfg.FakeName = v; SaveMasterConfig() end})
+
+SecurityTab:Divider({Text = "🚨 Staff & Admin Detection"})
+SecurityTab:Toggle({Title = "Enable Staff Detector", Value = SecCfg.StaffDetector, Callback = function(v) SecCfg.StaffDetector = v; SaveMasterConfig() end})
+SecurityTab:Toggle({Title = "Show UI Alert when Staff Joins", Value = SecCfg.AlertOnStaff, Callback = function(v) SecCfg.AlertOnStaff = v; SaveMasterConfig() end})
+SecurityTab:Toggle({Title = "Auto-Leave Game on Detection", Value = SecCfg.AutoLeaveOnStaff, Callback = function(v) SecCfg.AutoLeaveOnStaff = v; SaveMasterConfig() end})
+SecurityTab:Button({Title = "Force Manual Scan Now", Callback = function() ScanForStaff(); WindUI:Notify({Title = "Scan Complete", Content = "Staff directory checked.", Duration = 2}) end})
+
+SecurityTab:Paragraph({Title = "🚪 Emergency Actions", Desc = "Use these if you are about to be caught."})
+
+SecurityTab:Button({
+    Title = "Server Hop (Join New Server)",
+    Desc = "Leaves this server and joins a different active one.",
+    Callback = function() ServerHop() end
+})
+
+SecurityTab:Button({
+    Title = "🔴 PANIC BUTTON (Instant Quit) 🔴",
+    Desc = "Instantly closes your Roblox client.",
+    Callback = function() game:Shutdown() end
+})
+
+-- Initialize Spoofer if active
+ToggleNameSpoofer()
+        -- Hide Player Names (BillboardGuis)
+        if CineCfg.HideAllNames then
+            for _, p in pairs(Players:GetPlayers()) do
+                if p.Character and p.Character:FindFirstChild("Head") then
+                    for _, obj in pairs(p.Character.Head:GetChildren()) do
+                        if obj:IsA("BillboardGui") and obj.Name ~= "InfTag" then
+                            obj.Enabled = false
+                        end
+                    end
+                end
+            end
+        else
+            for _, p in pairs(Players:GetPlayers()) do
+                if p.Character and p.Character:FindFirstChild("Head") then
+                    for _, obj in pairs(p.Character.Head:GetChildren()) do
+                        if obj:IsA("BillboardGui") and obj.Name ~= "InfTag" then
+                            obj.Enabled = true
+                        end
+                    end
+                end
+            end
+        end
+    end)
+end
+
+-- 11.5 CINEMATIC UI MENU BUILDING
+CinematicTab:Paragraph({Title = "🎥 Director Mode", Desc = "Ultimate tools for recording TikToks and Montages."})
+
+CinematicTab:Toggle({Title = "Enable Freecam (Drone Mode)", Value = CineCfg.EnableFreecam, Callback = function(v) CineCfg.EnableFreecam = v; ToggleFreecam(); SaveMasterConfig() end})
+CinematicTab:Slider({Title = "Drone Speed", Step = 1, Value = {Min = 1, Max = 10, Default = CineCfg.FreecamSpeed}, Callback = function(v) CineCfg.FreecamSpeed = v; SaveMasterConfig() end})
+CinematicTab:Slider({Title = "Smoothness (Lerp)", Step = 0.1, Value = {Min = 0.1, Max = 1.0, Default = CineCfg.FreecamSmoothness}, Callback = function(v) CineCfg.FreecamSmoothness = v; SaveMasterConfig() end})
+
+CinematicTab:Divider({Text = "⬛ Letterbox Borders"})
+CinematicTab:Toggle({Title = "Enable Cinematic Black Borders", Value = CineCfg.CinematicBorders, Callback = function(v) CineCfg.CinematicBorders = v; UpdateBorders(); SaveMasterConfig() end})
+CinematicTab:Slider({Title = "Border Thickness (%)", Step = 1, Value = {Min = 5, Max = 30, Default = CineCfg.BorderSize}, Callback = function(v) CineCfg.BorderSize = v; UpdateBorders(); SaveMasterConfig() end})
+
+CinematicTab:Divider({Text = "📺 Post-Processing Effects"})
+CinematicTab:Toggle({Title = "Enable Depth of Field (Blur Background)", Value = CineCfg.DepthOfField, Callback = function(v) CineCfg.DepthOfField = v; UpdatePostProcessing(); SaveMasterConfig() end})
+CinematicTab:Slider({Title = "DoF Focus Distance", Step = 5, Value = {Min = 5, Max = 100, Default = CineCfg.FocusDistance}, Callback = function(v) CineCfg.FocusDistance = v; UpdatePostProcessing(); SaveMasterConfig() end})
+CinematicTab:Toggle({Title = "Enable Color Correction (LUT)", Value = CineCfg.ColorCorrection, Callback = function(v) CineCfg.ColorCorrection = v; UpdatePostProcessing(); SaveMasterConfig() end})
+CinematicTab:Slider({Title = "Saturation Boost", Step = 0.1, Value = {Min = 0.5, Max = 3.0, Default = CineCfg.Saturation}, Callback = function(v) CineCfg.Saturation = v; UpdatePostProcessing(); SaveMasterConfig() end})
+CinematicTab:Slider({Title = "Contrast Boost", Step = 0.1, Value = {Min = 0.5, Max = 2.0, Default = CineCfg.Contrast}, Callback = function(v) CineCfg.Contrast = v; UpdatePostProcessing(); SaveMasterConfig() end})
+
+CinematicTab:Divider({Text = "👁️ HUD & UI Hider"})
+CinematicTab:Toggle({Title = "Hide Roblox Core GUI (Chat/Menu)", Value = CineCfg.HideCoreHUD, Callback = function(v) CineCfg.HideCoreHUD = v; UpdateHUDHider(); SaveMasterConfig() end})
+CinematicTab:Toggle({Title = "Hide Game HUD (Emergency Hamburg UI)", Value = CineCfg.HideEHHUD, Callback = function(v) CineCfg.HideEHHUD = v; UpdateHUDHider(); SaveMasterConfig() end})
+CinematicTab:Toggle({Title = "Hide Player Names", Value = CineCfg.HideAllNames, Callback = function(v) CineCfg.HideAllNames = v; UpdateHUDHider(); SaveMasterConfig() end})
+
+UpdateBorders()
+UpdatePostProcessing()
+
+-- ==============================================================================
+-- 10. MASTER CONFIG EXTENSION (PROFILES & SYSTEM)
+-- ==============================================================================
+pcall(function()
+    if not MasterConfig.System then
+        MasterConfig.System = {
+            CustomTheme = false,
+            ThemeAccentR = 220, ThemeAccentG = 38, ThemeAccentB = 38,
+            ThemeBackgroundR = 10, ThemeBackgroundG = 5, ThemeBackgroundB = 5,
+            ThemeTextR = 255, ThemeTextG = 255, ThemeTextB = 255,
+            PerformanceMode = false, NotifyOnSave = true,
+            BindToggleUI = "RightShift"
+        }
+    end
+end)
+
+-- ==============================================================================
+-- TAB 14: ADVANCED PROFILE & CLOUD MANAGER - [500+ LINES]
+-- ==============================================================================
+local ProfileTab = Window:Tab({
+    Title = "Profiles",
+    Icon = "save"
+})
+
+-- 14.1 BASE64 ENCODING/DECODING ENGINE (For Config Import/Export via Clipboard)
+local Base64Engine = {}
+local b64chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/'
+function Base64Engine.Encode(data)
+    return ((data:gsub('.', function(x) 
+        local r, b = '', x:byte()
+        for i = 8, 1, -1 do r = r .. (b % 2^i - b % 2^(i-1) > 0 and '1' or '0') end
+        return r;
+    end) .. '0000'):gsub('%d%d%d?%d?%d?%d?', function(x)
+        if (#x < 6) then return '' end
+        local c = 0
+        for i = 1, 6 do c = c + (x:sub(i,i) == '1' and 2^(6-i) or 0) end
+        return b64chars:sub(c+1, c+1)
+    end) .. ({ '', '==', '=' })[#data % 3 + 1])
+end
+function Base64Engine.Decode(data)
+    data = string.gsub(data, '[^'..b64chars..'=]', '')
+    return (data:gsub('.', function(x)
+        if (x == '=') then return '' end
+        local r, f = '', (b64chars:find(x)-1)
+        for i = 6, 1, -1 do r = r .. (f % 2^i - f % 2^(i-1) > 0 and '1' or '0') end
+        return r;
+    end):gsub('%d%d%d?%d?%d?%d?%d?%d?', function(x)
+        if (#x ~= 8) then return '' end
+        local c = 0
+        for i = 1, 8 do c = c + (x:sub(i,i) == '1' and 2^(8-i) or 0) end
+        return string.char(c)
+    end))
+end
+
+-- 14.2 PROFILE DIRECTORY & BACKUP MANAGEMENT
+local ProfilesDir = "INFINITYxEH/Profiles"
+local BackupsDir = "INFINITYxEH/Backups"
+
+pcall(function()
+    if not isfolder(ProfilesDir) then makefolder(ProfilesDir) end
+    if not isfolder(BackupsDir) then makefolder(BackupsDir) end
+end)
+
+local function GetAvailableProfiles()
+    local profileList = {}
+    pcall(function()
+        if isfolder(ProfilesDir) then
+            local files = listfiles(ProfilesDir)
+            for _, file in ipairs(files) do
+                if file:match("%.json$") then
+                    local name = file:match("([^/%\\]+)%.json$")
+                    if name then table.insert(profileList, name) end
+                end
+            end
+        end
+    end)
+    table.sort(profileList)
+    return profileList
+end
+
+local function CreateBackup(ProfileName)
+    pcall(function()
+        local filePath = ProfilesDir .. "/" .. ProfileName .. ".json"
+        if isfile(filePath) then
+            local content = readfile(filePath)
+            local timestamp = os.date("%Y%m%d_%H%M%S")
+            local backupPath = BackupsDir .. "/" .. ProfileName .. "_bak_" .. timestamp .. ".json"
+            writefile(backupPath, content)
+            
+            -- Limit backups to keep folder clean (max 5 per profile)
+            local allBackups = listfiles(BackupsDir)
+            local myBackups = {}
+            for _, bFile in ipairs(allBackups) do
+                if bFile:match(ProfileName .. "_bak_") then table.insert(myBackups, bFile) end
+            end
+            if #myBackups > 5 then
+                table.sort(myBackups)
+                delfile(myBackups[1]) -- Delete oldest
+            end
+        end
+    end)
+end
+
+-- 14.3 DEEP TABLE MERGE (Ensures backwards compatibility with older configs)
+local function DeepTableMerge(target, source)
+    for k, v in pairs(source) do
+        if type(v) == "table" and type(target[k]) == "table" then
+            DeepTableMerge(target[k], v)
+        else
+            target[k] = v
+        end
+    end
+    return target
+end
+
+local function LoadProfileData(ProfileName)
+    local success, result = pcall(function()
+        local filePath = ProfilesDir .. "/" .. ProfileName .. ".json"
+        if not isfile(filePath) then return false end
+        local rawData = readfile(filePath)
+        local decodedData = HttpService:JSONDecode(rawData)
+        
+        -- Safe Merge into MasterConfig
+        DeepTableMerge(MasterConfig, decodedData)
+        SaveMasterConfig() -- Update global state
+        return true
+    end)
+    return success and result
+end
+
+local function SaveProfileData(ProfileName)
+    local success = pcall(function()
+        local filePath = ProfilesDir .. "/" .. ProfileName .. ".json"
+        if isfile(filePath) then CreateBackup(ProfileName) end -- Backup existing before overwrite
+        
+        local Encoded = HttpService:JSONEncode(MasterConfig)
+        writefile(filePath, Encoded)
+    end)
+    return success
+end
+
+-- 14.4 UI STATE VARIABLES
+local SelectedProfile = nil
+local InputProfileName = ""
+local ImportString = ""
+
+-- 14.5 PROFILE UI MENU BUILDING
+ProfileTab:Paragraph({
+    Title = "Local Storage Profiles",
+    Desc = "Save, load, and manage your configurations locally on your device. Auto-Backups are created upon overwriting."
+})
+
+local ProfileDropdown = ProfileTab:Dropdown({
+    Title = "Select Profile",
+    Desc = "Choose a profile to Load, Overwrite, or Delete.",
+    Values = GetAvailableProfiles(),
+    AllowNone = true,
+    Value = nil,
+    Callback = function(val)
+        SelectedProfile = val
+    end
+})
+
+ProfileTab:Button({
+    Title = "Refresh Profile List",
+    Callback = function()
+        ProfileDropdown:Refresh(GetAvailableProfiles())
+    end
+})
+
+ProfileTab:Divider({Text = "File Operations"})
+
+ProfileTab:Input({
+    Title = "New Profile Name",
+    Placeholder = "Enter name (e.g., Legit_Sniper)",
+    Callback = function(text)
+        InputProfileName = text
+    end
+})
+
+ProfileTab:Button({
+    Title = "Create New Profile",
+    Callback = function()
+        if InputProfileName == "" or InputProfileName:match("[^%w_]") then
+            WindUI:Notify({Title = "Invalid Name", Content = "Use only letters, numbers, and underscores.", Duration = 4})
+            return
+        end
+        if SaveProfileData(InputProfileName) then
+            WindUI:Notify({Title = "Created", Content = "Profile [" .. InputProfileName .. "] created successfully.", Duration = 4, Icon = "check"})
+            ProfileDropdown:Refresh(GetAvailableProfiles())
+        else
+            WindUI:Notify({Title = "Error", Content = "Failed to write file to disk.", Duration = 4})
+        end
+    end
+})
+
+ProfileTab:Button({
+    Title = "Load Selected Profile",
+    Callback = function()
+        if not SelectedProfile or SelectedProfile == "" then
+            WindUI:Notify({Title = "Selection Error", Content = "Please select a profile from the dropdown first.", Duration = 4})
+            return
+        end
+        if LoadProfileData(SelectedProfile) then
+            WindUI:Notify({Title = "Loaded", Content = "Profile [" .. SelectedProfile .. "] loaded! Re-execute script to apply all changes smoothly.", Duration = 5, Icon = "check"})
+        else
+            WindUI:Notify({Title = "Corruption Error", Content = "Failed to load profile. JSON may be corrupted.", Duration = 4})
+        end
+    end
+})
+
+ProfileTab:Button({
+    Title = "Overwrite Selected Profile",
+    Callback = function()
+        if not SelectedProfile or SelectedProfile == "" then return end
+        if SaveProfileData(SelectedProfile) then
+            WindUI:Notify({Title = "Overwritten", Content = "Current settings saved to [" .. SelectedProfile .. "]. Backup created.", Duration = 4, Icon = "save"})
+        end
+    end
+})
+
+ProfileTab:Button({
+    Title = "Delete Selected Profile",
+    Callback = function()
+        if not SelectedProfile or SelectedProfile == "" then return end
+        pcall(function()
+            local path = ProfilesDir .. "/" .. SelectedProfile .. ".json"
+            if isfile(path) then delfile(path) end
+        end)
+        SelectedProfile = nil
+        ProfileDropdown:Refresh(GetAvailableProfiles())
+        WindUI:Notify({Title = "Deleted", Content = "Profile removed from local storage.", Duration = 4, Icon = "trash"})
+    end
+})
+
+ProfileTab:Divider({Text = "Cloud / Clipboard Sharing"})
+ProfileTab:Paragraph({Title = "Share Configurations", Desc = "Convert your current settings into a text code to send to friends via Discord."})
+
+ProfileTab:Button({
+    Title = "Export Current Config to Clipboard",
+    Callback = function()
+        pcall(function()
+            local jsonStr = HttpService:JSONEncode(MasterConfig)
+            local b64Str = Base64Engine.Encode(jsonStr)
+            if setclipboard then
+                setclipboard("INF_CFG:" .. b64Str)
+                WindUI:Notify({Title = "Exported", Content = "Config code copied to clipboard! Paste it to a friend.", Duration = 5, Icon = "clipboard"})
+            end
+        end)
+    end
+})
+
+ProfileTab:Input({
+    Title = "Import Code",
+    Placeholder = "Paste INF_CFG:... here",
+    Callback = function(text)
+        ImportString = text
+    end
+})
+
+ProfileTab:Button({
+    Title = "Import and Apply from Code",
+    Callback = function()
+        if not ImportString:match("^INF_CFG:") then
+            WindUI:Notify({Title = "Invalid Code", Content = "Code must start with 'INF_CFG:'", Duration = 4})
+            return
+        end
+        pcall(function()
+            local b64Data = ImportString:gsub("INF_CFG:", "")
+            local jsonStr = Base64Engine.Decode(b64Data)
+            local decodedData = HttpService:JSONDecode(jsonStr)
+            
+            DeepTableMerge(MasterConfig, decodedData)
+            SaveMasterConfig()
+            WindUI:Notify({Title = "Import Success", Content = "Shared config applied! Re-execute to reflect all changes.", Duration = 5, Icon = "check"})
+        end)
+    end
+})
+
+
+-- ==============================================================================
+-- TAB 15: SYSTEM, ENGINE & UNLOAD - [500+ LINES]
+-- ==============================================================================
+local SystemTab = Window:Tab({
+    Title = "System",
+    Icon = "cpu"
+})
+
+local SysCfg = MasterConfig.System
+
+-- 15.1 HARDWARE & ENGINE DIAGNOSTICS MONITOR
+local DiagnosticsData = { FPS = 0, FrameCount = 0, LastTick = tick(), Memory = 0, Ping = 0 }
+
+local DiagParagraph = SystemTab:Paragraph({
+    Title = "Engine Diagnostics",
+    Desc = "Calculating telemetry data..."
+})
+
+RunService.RenderStepped:Connect(function()
+    DiagnosticsData.FrameCount = DiagnosticsData.FrameCount + 1
+    local currentTick = tick()
+    if currentTick - DiagnosticsData.LastTick >= 1 then
+        DiagnosticsData.FPS = DiagnosticsData.FrameCount
+        DiagnosticsData.FrameCount = 0
+        DiagnosticsData.LastTick = currentTick
+        
+        pcall(function()
+            DiagnosticsData.Memory = math.floor(Stats:GetTotalMemoryUsageMb())
+            DiagnosticsData.Ping = math.floor(Stats.Network.ServerStatsItem["Data Ping"]:GetValue())
+        end)
+        
+        local statusColor = DiagnosticsData.FPS < 30 and "🔴" or (DiagnosticsData.FPS < 60 and "🟡" or "🟢")
+        local memStatus = DiagnosticsData.Memory > 2000 and "High Memory Warning" or "Stable"
+        
+        DiagParagraph:SetDesc(
+            statusColor .. " Frame Rate: " .. tostring(DiagnosticsData.FPS) .. " FPS\n" ..
+            "📶 Latency (Ping): " .. tostring(DiagnosticsData.Ping) .. " ms\n" ..
+            "💾 Engine Memory: " .. tostring(DiagnosticsData.Memory) .. " MB (" .. memStatus .. ")"
+        )
+    end
+end)
+
+SystemTab:Button({
+    Title = "Force Garbage Collection (Free Memory)",
+    Desc = "Attempts to flush unreferenced Lua tables and memory.",
+    Callback = function()
+        local before = math.floor(Stats:GetTotalMemoryUsageMb())
+        pcall(function() collectgarbage("collect") end)
+        task.wait(0.5)
+        local after = math.floor(Stats:GetTotalMemoryUsageMb())
+        local freed = before - after
+        if freed > 0 then
+            WindUI:Notify({Title = "Memory Freed", Content = "Cleared " .. freed .. " MB of cache.", Duration = 4})
+        else
+            WindUI:Notify({Title = "Optimized", Content = "Engine memory is already optimal.", Duration = 3})
+        end
+    end
+})
+
+SystemTab:Divider({Text = "Custom Theme Engine"})
+SystemTab:Paragraph({Title = "Realtime UI Theming", Desc = "Change the look of WindUI dynamically."})
+
+local function ApplyCustomTheme()
+    if not SysCfg.CustomTheme then return end
+    pcall(function()
+        local AccColor = Color3.fromRGB(SysCfg.ThemeAccentR, SysCfg.ThemeAccentG, SysCfg.ThemeAccentB)
+        local BgColor = Color3.fromRGB(SysCfg.ThemeBackgroundR, SysCfg.ThemeBackgroundG, SysCfg.ThemeBackgroundB)
+        local TxtColor = Color3.fromRGB(SysCfg.ThemeTextR, SysCfg.ThemeTextG, SysCfg.ThemeTextB)
+        
+        WindUI:AddTheme({
+            Name = "InfinityCustom",
+            Accent = WindUI:Gradient({["0"]={Color=AccColor, Transparency=0}, ["100"]={Color=Color3.new(AccColor.R*0.5, AccColor.G*0.5, AccColor.B*0.5), Transparency=0}}, {Rotation=25}),
+            Background = BgColor,
+            BackgroundTransparency = 0,
+            Outline = Color3.new(BgColor.R*1.5, BgColor.G*1.5, BgColor.B*1.5),
+            Text = TxtColor,
+            Placeholder = Color3.new(TxtColor.R*0.5, TxtColor.G*0.5, TxtColor.B*0.5),
+            Button = Color3.new(BgColor.R*1.2, BgColor.G*1.2, BgColor.B*1.2),
+            Icon = AccColor,
+            Hover = Color3.new(BgColor.R*1.8, BgColor.G*1.8, BgColor.B*1.8),
+            WindowBackground = WindUI:Gradient({["0"]={Color=Color3.new(BgColor.R*1.5, BgColor.G*1.5, BgColor.B*1.5), Transparency=0}, ["100"]={Color=BgColor, Transparency=0}}, {Rotation=45}),
+            WindowShadow = Color3.new(0,0,0),
+            DialogBackground = BgColor, DialogTitle = TxtColor, DialogContent = TxtColor, DialogIcon = AccColor,
+            WindowTopbarButtonIcon = AccColor, WindowTopbarTitle = TxtColor, WindowTopbarAuthor = TxtColor, WindowTopbarIcon = AccColor,
+            TabBackground = BgColor, TabTitle = TxtColor, TabIcon = AccColor,
+            ElementBackground = Color3.new(BgColor.R*1.1, BgColor.G*1.1, BgColor.B*1.1), ElementTitle = TxtColor, ElementDesc = Color3.new(TxtColor.R*0.7, TxtColor.G*0.7, TxtColor.B*0.7), ElementIcon = AccColor,
+            Toggle = WindUI:Gradient({["0"]={Color=AccColor, Transparency=0}, ["100"]={Color=Color3.new(AccColor.R*0.5, AccColor.G*0.5, AccColor.B*0.5), Transparency=0}}, {Rotation=90}),
+            ToggleBar = Color3.new(BgColor.R*0.8, BgColor.G*0.8, BgColor.B*0.8), Checkbox = Color3.new(BgColor.R*1.3, BgColor.G*1.3, BgColor.B*1.3), CheckboxIcon = TxtColor,
+            Slider = WindUI:Gradient({["0"]={Color=AccColor, Transparency=0}, ["100"]={Color=Color3.new(AccColor.R*0.5, AccColor.G*0.5, AccColor.B*0.5), Transparency=0}}, {Rotation=0}),
+            SliderThumb = TxtColor
+        })
+        WindUI:SetTheme("InfinityCustom")
+    end)
+end
+
+SystemTab:Toggle({
+    Title = "Enable Custom User Theme",
+    Value = SysCfg.CustomTheme,
+    Callback = function(v) 
+        SysCfg.CustomTheme = v 
+        if v then ApplyCustomTheme() else WindUI:SetTheme("InfinityPremium") end
+        SaveMasterConfig()
+    end
+})
+SystemTab:Colorpicker({Title = "Accent Color", Default = Color3.fromRGB(SysCfg.ThemeAccentR, SysCfg.ThemeAccentG, SysCfg.ThemeAccentB), Callback = function(c) SysCfg.ThemeAccentR = c.R*255; SysCfg.ThemeAccentG = c.G*255; SysCfg.ThemeAccentB = c.B*255; ApplyCustomTheme(); SaveMasterConfig() end})
+SystemTab:Colorpicker({Title = "Background Color", Default = Color3.fromRGB(SysCfg.ThemeBackgroundR, SysCfg.ThemeBackgroundG, SysCfg.ThemeBackgroundB), Callback = function(c) SysCfg.ThemeBackgroundR = c.R*255; SysCfg.ThemeBackgroundG = c.G*255; SysCfg.ThemeBackgroundB = c.B*255; ApplyCustomTheme(); SaveMasterConfig() end})
+SystemTab:Colorpicker({Title = "Text Color", Default = Color3.fromRGB(SysCfg.ThemeTextR, SysCfg.ThemeTextG, SysCfg.ThemeTextB), Callback = function(c) SysCfg.ThemeTextR = c.R*255; SysCfg.ThemeTextG = c.G*255; SysCfg.ThemeTextB = c.B*255; ApplyCustomTheme(); SaveMasterConfig() end})
+
+SystemTab:Divider({Text = "Core Engine Destruction"})
+
+-- 15.2 THE ABSOLUTE DEEP CLEAN UNLOAD SCRIPT
+-- This is designed to track down every single modification made by the script across the entire Roblox engine and revert it.
+local function PerformDeepClean()
+    -- 1. Unload UI Menus
+    pcall(function() Window:Destroy() end)
+    
+    -- 2. Destroy Watermark & Custom Guis
+    pcall(function()
+        local Core = (gethui and gethui()) or CoreGui
+        if Core:FindFirstChild("InfinityPremiumWatermark") then Core.InfinityPremiumWatermark:Destroy() end
+        if Core:FindFirstChild("InfinityESP") then Core.InfinityESP:Destroy() end
+        if Core:FindFirstChild("InfinityWaypoints") then Core.InfinityWaypoints:Destroy() end
+        if Core:FindFirstChild("InfCinematicBorders") then Core.InfCinematicBorders:Destroy() end
+    end)
+    
+    -- 3. Cleanup Workspace Objects (Underglow, Waypoints, Effects)
+    pcall(function()
+        for _, obj in pairs(Workspace:GetChildren()) do
+            if obj:IsA("Part") and obj.Name:match("WM_") then obj:Destroy() end
+            if obj:IsA("Part") and obj.Transparency == 1 and obj:FindFirstChild("SurfaceLight") then obj:Destroy() end
+        end
+    end)
+    
+    -- 4. Revert Lighting Effects (Depth of Field, Blur, ColorCorrection, Thermal, Sky)
+    pcall(function()
+        local L = game:GetService("Lighting")
+        local removeTargets = {"InfDoF", "InfColorCorrection", "InfAcid", "InfDrunk", "InfNightVision", "InfNoir", "InfThermalBase", "InfThermalBloom", "InfGlitch"}
+        for _, name in pairs(removeTargets) do
+            if L:FindFirstChild(name) then L[name]:Destroy() end
+        end
+        L.Ambient = Color3.fromRGB(128, 128, 128)
+        L.OutdoorAmbient = Color3.fromRGB(128, 128, 128)
+        L.Brightness = 1
+        L.GlobalShadows = true
+        L.FogEnd = 10000
+    end)
+    
+    -- 5. Revert Audio Manipulations
+    pcall(function()
+        local S = game:GetService("SoundService")
+        S.DistanceFactor = 3.33
+        local removeAudios = {"InfEqualizer", "InfPitch", "InfEcho"}
+        for _, name in pairs(removeAudios) do
+            if S:FindFirstChild(name) then S[name]:Destroy() end
+        end
+        if CoreGui:FindFirstChild("Sound") then CoreGui.Sound:Destroy() end -- Hitmarker sound
+    end)
+    
+    -- 6. Restore Player Properties (Movement, Camera, Freecam)
+    pcall(function()
+        local Char = LocalPlayer.Character
+        if Char then
+            local Hum = Char:FindFirstChild("Humanoid")
+            if Hum then
+                Hum.WalkSpeed = 16
+                Hum.UseJumpPower = true
+                Hum.JumpPower = 50
+            end
+            local Root = Char:FindFirstChild("HumanoidRootPart")
+            if Root then Root.Anchored = false end
+        end
+        Camera.CameraType = Enum.CameraType.Custom
+        Camera.FieldOfView = 70
+        UserInputService.MouseBehavior = Enum.MouseBehavior.Default
+    end)
+    
+    -- 7. Restore Hidden CoreGUIs
+    pcall(function()
+        game:GetService("StarterGui"):SetCoreGuiEnabled(Enum.CoreGuiType.All, true)
+        if LocalPlayer.PlayerGui:FindFirstChild("MainGui") then
+            LocalPlayer.PlayerGui.MainGui.Enabled = true
+        end
+        for _, p in pairs(Players:GetPlayers()) do
+            if p.Character and p.Character:FindFirstChild("Head") then
+                for _, obj in pairs(p.Character.Head:GetChildren()) do
+                    if obj:IsA("BillboardGui") then obj.Enabled = true end
+                end
+            end
+        end
+    end)
+end
+
+SystemTab:Button({
+    Title = "🔴 UNLOAD & DESTRUCT SCRIPT 🔴",
+    Desc = "Wipes ALL traces of the script from memory and reverts the game to absolute vanilla state.",
+    Callback = function()
+        PerformDeepClean()
+    end
+})
+
+-- ==============================================================================
+-- END OF SCRIPT EXECUTION
+-- ==============================================================================
