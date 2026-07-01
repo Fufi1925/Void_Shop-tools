@@ -612,3 +612,372 @@ task.spawn(function()
     task.wait(1.5)
     IsStartupAnimation = false
 end)
+
+-- ==============================================================================
+-- 4. MASTER CONFIG EXTENSION (COMBAT & VEHICLES)
+-- ==============================================================================
+-- Extending the MasterConfig securely
+pcall(function()
+    if not MasterConfig.Combat then
+        MasterConfig.Combat = {
+            CrosshairEnabled = false, CHColorR = 255, CHColorG = 255, CHColorB = 255,
+            CHThickness = 2, CHLength = 12, CHGap = 4, CHAlpha = 1,
+            CHDynamic = true, CHSpin = false, CHSpinSpeed = 100,
+            CHTShape = false, CHXShape = false, CHHideScope = true,
+            Hitmarker = true, Hitsound = "Rust", DamageIndicator = true,
+            FOV = 70, OGSniper = false, OGSniperCooldown = false
+        }
+    end
+    if not MasterConfig.Vehicle then
+        MasterConfig.Vehicle = {
+            Underglow = false, UnderglowAll = false, UGColorR = 255, UGColorG = 0, UGColorB = 0,
+            UGRainbow = false, UGBrightness = 4, PaintEnabled = false,
+            PaintColorR = 255, PaintColorG = 255, PaintColorB = 255,
+            PaintMaterial = "SmoothPlastic", CustomPlate = false, PlateText = "INFINITY",
+            CustomHorn = "Default", DriftSmoke = false, SmokeColorR = 255, SmokeColorG = 0, SmokeColorB = 0
+        }
+    end
+end)
+
+-- ==============================================================================
+-- TAB 3: COMBAT & CROSSHAIR
+-- ==============================================================================
+local CombatTab = Window:Tab({
+    Title = "Combat & HUD",
+    Icon = "crosshair"
+})
+
+local CombatCfg = MasterConfig.Combat
+
+-- 3.1 CROSSHAIR SYSTEM (DRAWING API)
+local CHLines = {
+    Top = Drawing.new("Line"), Bottom = Drawing.new("Line"),
+    Left = Drawing.new("Line"), Right = Drawing.new("Line")
+}
+for _, line in pairs(CHLines) do line.Visible = false; line.ZIndex = 1000 end
+local CHRotation = 0
+
+RunService.RenderStepped:Connect(function(dt)
+    if not CombatCfg.CrosshairEnabled then
+        for _, line in pairs(CHLines) do line.Visible = false end
+        return
+    end
+
+    if CombatCfg.CHHideScope then
+        local Scoped = false
+        pcall(function()
+            local PGui = LocalPlayer:FindFirstChild("PlayerGui")
+            if PGui then
+                for _, element in pairs(PGui:GetChildren()) do
+                    if element:FindFirstChild("5") and element:GetChildren()[1]:FindFirstChild("5").Image == "rbxassetid://285779644" then Scoped = true end
+                end
+            end
+        end)
+        if Scoped then
+            for _, line in pairs(CHLines) do line.Visible = false end
+            return
+        end
+    end
+
+    local Viewport = Camera.ViewportSize
+    local TargetPos = Vector2.new(Viewport.X / 2, (Viewport.Y / 2) - 18) -- Account for Roblox Topbar
+    local BaseColor = Color3.fromRGB(CombatCfg.CHColorR, CombatCfg.CHColorG, CombatCfg.CHColorB)
+    local ActiveGap = CombatCfg.CHGap
+
+    if CombatCfg.CHDynamic then
+        pcall(function()
+            local Speed = LocalPlayer.Character.HumanoidRootPart.Velocity.Magnitude
+            ActiveGap = ActiveGap + (Speed / 3.5)
+        end)
+    end
+
+    local BaseAngle = CombatCfg.CHXShape and 45 or 0
+    if CombatCfg.CHSpin then
+        CHRotation = (CHRotation + (CombatCfg.CHSpinSpeed * dt)) % 360
+    else
+        CHRotation = 0
+    end
+
+    local Rad = math.rad(CHRotation + BaseAngle)
+    local CosA, SinA = math.cos(Rad), math.sin(Rad)
+
+    local function RotatePoint(ox, oy)
+        return Vector2.new(TargetPos.X + (ox * CosA - oy * SinA), TargetPos.Y + (ox * SinA + oy * CosA))
+    end
+
+    CHLines.Top.From = RotatePoint(0, -ActiveGap)
+    CHLines.Top.To = RotatePoint(0, -(ActiveGap + CombatCfg.CHLength))
+    CHLines.Bottom.From = RotatePoint(0, ActiveGap)
+    CHLines.Bottom.To = RotatePoint(0, ActiveGap + CombatCfg.CHLength)
+    CHLines.Left.From = RotatePoint(-ActiveGap, 0)
+    CHLines.Left.To = RotatePoint(-(ActiveGap + CombatCfg.CHLength), 0)
+    CHLines.Right.From = RotatePoint(ActiveGap, 0)
+    CHLines.Right.To = RotatePoint(ActiveGap + CombatCfg.CHLength, 0)
+
+    for name, line in pairs(CHLines) do
+        line.Color = BaseColor
+        line.Thickness = CombatCfg.CHThickness
+        line.Transparency = CombatCfg.CHAlpha
+        if CombatCfg.CHTShape and not CombatCfg.CHXShape and name == "Top" then
+            line.Visible = false
+        else
+            line.Visible = true
+        end
+    end
+end)
+
+-- 3.2 HITMARKER & DAMAGE INDICATOR SYSTEM
+local HitmarkerLines = {Drawing.new("Line"), Drawing.new("Line"), Drawing.new("Line"), Drawing.new("Line")}
+for _, line in pairs(HitmarkerLines) do line.Color = Color3.new(1, 1, 1); line.Thickness = 2; line.Visible = false end
+
+local HitSounds = {
+    ["Rust"] = "rbxassetid://1255040462",
+    ["Minecraft"] = "rbxassetid://8766809464",
+    ["Skeet"] = "rbxassetid://5633695679",
+    ["Headshot"] = "rbxassetid://2513174484"
+}
+local HitAudio = Instance.new("Sound", CoreGui)
+HitAudio.Volume = 2
+
+local function ShowDamageIndicator(TargetChar, Damage)
+    if not CombatCfg.DamageIndicator then return end
+    pcall(function()
+        local Head = TargetChar:FindFirstChild("Head") or TargetChar:FindFirstChild("HumanoidRootPart")
+        if not Head then return end
+
+        local Bill = Instance.new("BillboardGui", Head)
+        Bill.Size = UDim2.new(0, 100, 0, 50)
+        Bill.StudsOffset = Vector3.new(math.random(-2, 2), math.random(1, 3), math.random(-2, 2))
+        Bill.AlwaysOnTop = true
+
+        local Txt = Instance.new("TextLabel", Bill)
+        Txt.Size = UDim2.new(1, 0, 1, 0)
+        Txt.BackgroundTransparency = 1
+        Txt.Text = "-" .. math.floor(Damage)
+        Txt.TextColor3 = Color3.fromRGB(255, 50, 50)
+        Txt.TextScaled = true
+        Txt.Font = Enum.Font.GothamBlack
+        Txt.TextStrokeTransparency = 0
+
+        TweenService:Create(Bill, TweenInfo.new(1, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {StudsOffset = Bill.StudsOffset + Vector3.new(0, 3, 0)}):Play()
+        local Fade = TweenService:Create(Txt, TweenInfo.new(1, Enum.EasingStyle.Quad, Enum.EasingDirection.In), {TextTransparency = 1, TextStrokeTransparency = 1})
+        Fade:Play()
+        Fade.Completed:Connect(function() Bill:Destroy() end)
+    end)
+end
+
+local HealthCache = {}
+task.spawn(function()
+    while task.wait(0.1) do
+        pcall(function()
+            for _, Player in pairs(Players:GetPlayers()) do
+                if Player ~= LocalPlayer and Player.Character and Player.Character:FindFirstChild("Humanoid") then
+                    local CurrentHealth = Player.Character.Humanoid.Health
+                    if HealthCache[Player] and CurrentHealth < HealthCache[Player] and CurrentHealth > 0 then
+                        local Damage = HealthCache[Player] - CurrentHealth
+                        
+                        -- Play Sound
+                        if CombatCfg.Hitsound ~= "None" then
+                            HitAudio.SoundId = HitSounds[CombatCfg.Hitsound] or HitSounds["Rust"]
+                            HitAudio:Play()
+                        end
+
+                        -- Draw Hitmarker
+                        if CombatCfg.Hitmarker then
+                            task.spawn(function()
+                                local VP = Camera.ViewportSize
+                                local Pos = Vector2.new(VP.X/2, (VP.Y/2)-18)
+                                HitmarkerLines[1].From = Pos + Vector2.new(-6, -6); HitmarkerLines[1].To = Pos + Vector2.new(-12, -12)
+                                HitmarkerLines[2].From = Pos + Vector2.new(6, -6); HitmarkerLines[2].To = Pos + Vector2.new(12, -12)
+                                HitmarkerLines[3].From = Pos + Vector2.new(-6, 6); HitmarkerLines[3].To = Pos + Vector2.new(-12, 12)
+                                HitmarkerLines[4].From = Pos + Vector2.new(6, 6); HitmarkerLines[4].To = Pos + Vector2.new(12, 12)
+                                for _, l in pairs(HitmarkerLines) do l.Visible = true end
+                                task.wait(0.15)
+                                for _, l in pairs(HitmarkerLines) do l.Visible = false end
+                            end)
+                        end
+
+                        ShowDamageIndicator(Player.Character, Damage)
+                    end
+                    HealthCache[Player] = CurrentHealth
+                end
+            end
+        end)
+    end
+end)
+
+-- 3.3 COMBAT UI ELEMENTS
+CombatTab:Paragraph({Title = "🎯 Crosshair Parameters"})
+CombatTab:Toggle({Title = "Enable Advanced Crosshair", Value = CombatCfg.CrosshairEnabled, Callback = function(v) CombatCfg.CrosshairEnabled = v; SaveMasterConfig() end})
+CombatTab:Colorpicker({Title = "Crosshair Color", Default = Color3.fromRGB(CombatCfg.CHColorR, CombatCfg.CHColorG, CombatCfg.CHColorB), Callback = function(c) CombatCfg.CHColorR = c.R*255; CombatCfg.CHColorG = c.G*255; CombatCfg.CHColorB = c.B*255; SaveMasterConfig() end})
+CombatTab:Slider({Title = "Thickness", Step = 1, Value = {Min = 1, Max = 10, Default = CombatCfg.CHThickness}, Callback = function(v) CombatCfg.CHThickness = v; SaveMasterConfig() end})
+CombatTab:Slider({Title = "Length", Step = 1, Value = {Min = 1, Max = 50, Default = CombatCfg.CHLength}, Callback = function(v) CombatCfg.CHLength = v; SaveMasterConfig() end})
+CombatTab:Slider({Title = "Center Gap", Step = 1, Value = {Min = 0, Max = 30, Default = CombatCfg.CHGap}, Callback = function(v) CombatCfg.CHGap = v; SaveMasterConfig() end})
+CombatTab:Toggle({Title = "Dynamic Spread (Movement)", Value = CombatCfg.CHDynamic, Callback = function(v) CombatCfg.CHDynamic = v; SaveMasterConfig() end})
+CombatTab:Toggle({Title = "T-Shape (Hide Top)", Value = CombatCfg.CHTShape, Callback = function(v) CombatCfg.CHTShape = v; SaveMasterConfig() end})
+CombatTab:Toggle({Title = "X-Shape (Diagonal)", Value = CombatCfg.CHXShape, Callback = function(v) CombatCfg.CHXShape = v; SaveMasterConfig() end})
+
+CombatTab:Divider({Text = "💥 Hit & Feedback"})
+CombatTab:Toggle({Title = "Visual Hitmarker (X)", Value = CombatCfg.Hitmarker, Callback = function(v) CombatCfg.Hitmarker = v; SaveMasterConfig() end})
+CombatTab:Toggle({Title = "Damage Indicator (Numbers)", Value = CombatCfg.DamageIndicator, Callback = function(v) CombatCfg.DamageIndicator = v; SaveMasterConfig() end})
+CombatTab:Dropdown({Title = "Hit Sound", Values = {"None", "Rust", "Minecraft", "Skeet", "Headshot"}, Value = CombatCfg.Hitsound, Callback = function(v) CombatCfg.Hitsound = v; SaveMasterConfig() end})
+
+CombatTab:Divider({Text = "🔭 Weapon Mods"})
+CombatTab:Slider({Title = "Field of View (FOV)", Step = 1, Value = {Min = 70, Max = 120, Default = CombatCfg.FOV}, Callback = function(v) CombatCfg.FOV = v; Camera.FieldOfView = v; SaveMasterConfig() end})
+
+-- Force FOV Loop
+RunService.RenderStepped:Connect(function()
+    if Camera.FieldOfView ~= CombatCfg.FOV and CombatCfg.FOV > 70 then
+        Camera.FieldOfView = CombatCfg.FOV
+    end
+end)
+
+-- ==============================================================================
+-- TAB 4: VEHICLES & TUNING
+-- ==============================================================================
+local VehicleTab = Window:Tab({
+    Title = "Vehicles",
+    Icon = "car"
+})
+
+local VehCfg = MasterConfig.Vehicle
+local UnderglowCache = {}
+
+local HornSounds = {
+    ["Default"] = "",
+    ["Train"] = "rbxassetid://4580219665",
+    ["La Cucaracha"] = "rbxassetid://134764024",
+    ["Meme"] = "rbxassetid://6052562028",
+    ["Clown"] = "rbxassetid://663248386",
+    ["Police Siren"] = "rbxassetid://9054705051"
+}
+
+-- 4.1 UNDERGLOW LOGIC
+local function RefreshUnderglow()
+    for _, data in pairs(UnderglowCache) do if data.Part then data.Part:Destroy() end end
+    UnderglowCache = {}
+
+    if not VehCfg.Underglow then return end
+    local VehicleFolder = Workspace:FindFirstChild("Vehicles")
+    if not VehicleFolder then return end
+
+    for _, Car in pairs(VehicleFolder:GetChildren()) do
+        local IsMine = false
+        local Owner = Car:FindFirstChild("Owner")
+        if (Owner and Owner.Value == LocalPlayer) or Car.Name:find(LocalPlayer.Name) then IsMine = true end
+
+        if VehCfg.UnderglowAll or IsMine then
+            local Body = Car:FindFirstChild("Body") and Car.Body:FindFirstChild("Body")
+            if Body then
+                local GlowPart = Instance.new("Part", Workspace)
+                GlowPart.Size = Vector3.new(4, 0.1, 13)
+                GlowPart.Anchored = true
+                GlowPart.CanCollide = false
+                GlowPart.Transparency = 1
+                
+                local Light = Instance.new("SurfaceLight", GlowPart)
+                Light.Face = Enum.NormalId.Bottom
+                Light.Brightness = VehCfg.UGBrightness
+                Light.Range = 10
+                Light.Angle = 180
+                Light.Color = Color3.fromRGB(VehCfg.UGColorR, VehCfg.UGColorG, VehCfg.UGColorB)
+                
+                UnderglowCache[Car] = {Part = GlowPart, Body = Body, Light = Light}
+            end
+        end
+    end
+end
+
+RunService.RenderStepped:Connect(function()
+    for _, data in pairs(UnderglowCache) do
+        if data.Part and data.Body then
+            data.Part.CFrame = data.Body.CFrame * CFrame.new(0, -data.Body.Size.Y + 2.5, 0)
+            if VehCfg.UGRainbow then
+                data.Light.Color = Color3.fromHSV(tick() % 5 / 5, 1, 1)
+            else
+                data.Light.Color = Color3.fromRGB(VehCfg.UGColorR, VehCfg.UGColorG, VehCfg.UGColorB)
+            end
+            data.Light.Brightness = VehCfg.UGBrightness
+        end
+    end
+end)
+
+local function GetLocalVehicle()
+    local VehicleFolder = Workspace:FindFirstChild("Vehicles")
+    if not VehicleFolder then return nil end
+    for _, Car in pairs(VehicleFolder:GetChildren()) do
+        local Owner = Car:FindFirstChild("Owner")
+        if (Owner and Owner.Value == LocalPlayer) or Car.Name:find(LocalPlayer.Name) then return Car end
+    end
+    return nil
+end
+
+-- 4.2 VEHICLE MODIFIER LOOP (Paint, Horn, Plates)
+task.spawn(function()
+    while task.wait(1) do
+        pcall(function()
+            local MyCar = GetLocalVehicle()
+            if not MyCar then return end
+
+            -- Paint Job
+            if VehCfg.PaintEnabled then
+                for _, Part in pairs(MyCar:GetDescendants()) do
+                    if Part:IsA("BasePart") and (Part.Name:find("Body") or Part.Name:find("Chassis") or Part.Name:find("Door")) then
+                        Part.Color = Color3.fromRGB(VehCfg.PaintColorR, VehCfg.PaintColorG, VehCfg.PaintColorB)
+                        Part.Material = Enum.Material[VehCfg.PaintMaterial] or Enum.Material.SmoothPlastic
+                    end
+                end
+            end
+
+            -- License Plate
+            if VehCfg.CustomPlate then
+                for _, Txt in pairs(MyCar:GetDescendants()) do
+                    if Txt:IsA("TextLabel") and Txt.Parent and Txt.Parent.Name:find("Plate") then
+                        Txt.Text = VehCfg.PlateText
+                    end
+                end
+            end
+
+            -- Horn Sound
+            if VehCfg.CustomHorn ~= "Default" then
+                for _, Snd in pairs(MyCar:GetDescendants()) do
+                    if Snd:IsA("Sound") and (Snd.Name:find("Horn") or Snd.Name:find("Honk")) then
+                        Snd.SoundId = HornSounds[VehCfg.CustomHorn]
+                    end
+                end
+            end
+
+            -- Drift Smoke
+            if VehCfg.DriftSmoke then
+                for _, Emitter in pairs(MyCar:GetDescendants()) do
+                    if Emitter:IsA("ParticleEmitter") and Emitter.Name:find("Smoke") then
+                        local SColor = Color3.fromRGB(VehCfg.SmokeColorR, VehCfg.SmokeColorG, VehCfg.SmokeColorB)
+                        Emitter.Color = ColorSequence.new(SColor)
+                    end
+                end
+            end
+        end)
+    end
+end)
+
+-- 4.3 VEHICLE UI ELEMENTS
+VehicleTab:Paragraph({Title = "💡 Underglow"})
+VehicleTab:Toggle({Title = "Enable Underglow", Value = VehCfg.Underglow, Callback = function(v) VehCfg.Underglow = v; RefreshUnderglow(); SaveMasterConfig() end})
+VehicleTab:Toggle({Title = "Show on ALL Vehicles", Value = VehCfg.UnderglowAll, Callback = function(v) VehCfg.UnderglowAll = v; RefreshUnderglow(); SaveMasterConfig() end})
+VehicleTab:Toggle({Title = "Rainbow RGB Mode", Value = VehCfg.UGRainbow, Callback = function(v) VehCfg.UGRainbow = v; SaveMasterConfig() end})
+VehicleTab:Colorpicker({Title = "Solid Color", Default = Color3.fromRGB(VehCfg.UGColorR, VehCfg.UGColorG, VehCfg.UGColorB), Callback = function(c) VehCfg.UGColorR = c.R*255; VehCfg.UGColorG = c.G*255; VehCfg.UGColorB = c.B*255; SaveMasterConfig() end})
+VehicleTab:Slider({Title = "Light Brightness", Step = 1, Value = {Min = 1, Max = 10, Default = VehCfg.UGBrightness}, Callback = function(v) VehCfg.UGBrightness = v; SaveMasterConfig() end})
+
+VehicleTab:Divider({Text = "🎨 Custom Tuning (Client-Side)"})
+VehicleTab:Toggle({Title = "Override Paint & Material", Value = VehCfg.PaintEnabled, Callback = function(v) VehCfg.PaintEnabled = v; SaveMasterConfig() end})
+VehicleTab:Colorpicker({Title = "Paint Color", Default = Color3.fromRGB(VehCfg.PaintColorR, VehCfg.PaintColorG, VehCfg.PaintColorB), Callback = function(c) VehCfg.PaintColorR = c.R*255; VehCfg.PaintColorG = c.G*255; VehCfg.PaintColorB = c.B*255; SaveMasterConfig() end})
+VehicleTab:Dropdown({Title = "Material", Values = {"SmoothPlastic", "Neon", "ForceField", "Glass", "Foil"}, Value = VehCfg.PaintMaterial, Callback = function(v) VehCfg.PaintMaterial = v; SaveMasterConfig() end})
+
+VehicleTab:Divider({Text = "🛠️ Modifications"})
+VehicleTab:Dropdown({Title = "Custom Horn Sound", Values = {"Default", "Train", "La Cucaracha", "Meme", "Clown", "Police Siren"}, Value = VehCfg.CustomHorn, Callback = function(v) VehCfg.CustomHorn = v; SaveMasterConfig() end})
+VehicleTab:Toggle({Title = "Custom License Plate", Value = VehCfg.CustomPlate, Callback = function(v) VehCfg.CustomPlate = v; SaveMasterConfig() end})
+VehicleTab:Input({Title = "Plate Text", Placeholder = "Type here...", Callback = function(v) VehCfg.PlateText = v; SaveMasterConfig() end})
+VehicleTab:Toggle({Title = "Colored Drift Smoke", Value = VehCfg.DriftSmoke, Callback = function(v) VehCfg.DriftSmoke = v; SaveMasterConfig() end})
+VehicleTab:Colorpicker({Title = "Smoke Color", Default = Color3.fromRGB(VehCfg.SmokeColorR, VehCfg.SmokeColorG, VehCfg.SmokeColorB), Callback = function(c) VehCfg.SmokeColorR = c.R*255; VehCfg.SmokeColorG = c.G*255; VehCfg.SmokeColorB = c.B*255; SaveMasterConfig() end})
+
+
