@@ -981,3 +981,316 @@ VehicleTab:Toggle({Title = "Colored Drift Smoke", Value = VehCfg.DriftSmoke, Cal
 VehicleTab:Colorpicker({Title = "Smoke Color", Default = Color3.fromRGB(VehCfg.SmokeColorR, VehCfg.SmokeColorG, VehCfg.SmokeColorB), Callback = function(c) VehCfg.SmokeColorR = c.R*255; VehCfg.SmokeColorG = c.G*255; VehCfg.SmokeColorB = c.B*255; SaveMasterConfig() end})
 
 
+-- ==============================================================================
+-- 5. MASTER CONFIG EXTENSION (VISUALS, ENVIRONMENT, SKINS)
+-- ==============================================================================
+pcall(function()
+    if not MasterConfig.Visuals then
+        MasterConfig.Visuals = {
+            Nametags = false, ShowDistance = true, ShowHealth = true, ShowJob = true,
+            TextSize = 10, Chams = false, ChamsFillR = 255, ChamsFillG = 0, ChamsFillB = 0,
+            ChamsOutlineR = 255, ChamsOutlineG = 255, ChamsOutlineB = 255, CopESP = false
+        }
+    end
+    if not MasterConfig.Environment then
+        MasterConfig.Environment = {
+            CustomSky = "Default", Fullbright = false, FreezeTime = false,
+            ClockTime = 12, RemoveFog = false, FPSBoost = false
+        }
+    end
+    if not MasterConfig.Skins then
+        MasterConfig.Skins = {
+            SkinActive = false, ApplyToAll = false,
+            SniperSkin = "Default", G36Skin = "Default",
+            HelmetSkin = "Default", VestSkin = "Default"
+        }
+    end
+end)
+
+-- ==============================================================================
+-- TAB 5: VISUALS (ESP & NAMETAGS)
+-- ==============================================================================
+local VisualsTab = Window:Tab({
+    Title = "Visuals",
+    Icon = "eye"
+})
+
+local VisCfg = MasterConfig.Visuals
+local EspFolder = Instance.new("Folder")
+EspFolder.Name = "InfinityESP"
+pcall(function() EspFolder.Parent = (gethui and gethui()) or CoreGui end)
+
+local function CleanupESP(Player)
+    if EspFolder:FindFirstChild(Player.Name .. "_Tag") then
+        EspFolder[Player.Name .. "_Tag"]:Destroy()
+    end
+    if EspFolder:FindFirstChild(Player.Name .. "_Cham") then
+        EspFolder[Player.Name .. "_Cham"]:Destroy()
+    end
+end
+
+RunService.RenderStepped:Connect(function()
+    for _, Player in pairs(Players:GetPlayers()) do
+        if Player ~= LocalPlayer then
+            local Character = Player.Character
+            local Head = Character and Character:FindFirstChild("Head")
+            local Humanoid = Character and Character:FindFirstChild("Humanoid")
+            
+            -- Nametags Logic
+            if VisCfg.Nametags and Head and Humanoid and Humanoid.Health > 0 then
+                local Tag = EspFolder:FindFirstChild(Player.Name .. "_Tag")
+                if not Tag then
+                    Tag = Instance.new("BillboardGui")
+                    Tag.Name = Player.Name .. "_Tag"
+                    Tag.Size = UDim2.new(0, 200, 0, 50)
+                    Tag.AlwaysOnTop = true
+                    Tag.Parent = EspFolder
+                    
+                    local Txt = Instance.new("TextLabel", Tag)
+                    Txt.Size = UDim2.new(1, 0, 1, 0)
+                    Txt.BackgroundTransparency = 1
+                    Txt.Font = Enum.Font.Code
+                    Txt.TextStrokeTransparency = 0.2
+                    Txt.RichText = true
+                end
+                
+                Tag.Adornee = Head
+                
+                local Dist = math.floor((Camera.CFrame.Position - Head.Position).Magnitude)
+                local Job = "Citizen"
+                local Wanted = 0
+                pcall(function()
+                    Job = Player.leaderstats.Job.Value
+                    Wanted = Player.leaderstats.Wanted.Value
+                end)
+                
+                local HpStr = VisCfg.ShowHealth and string.format(" [HP: %d]", math.floor(Humanoid.Health)) or ""
+                local DistStr = VisCfg.ShowDistance and string.format(" [%dm]", Dist) or ""
+                local JobStr = VisCfg.ShowJob and string.format("\n%s %s", Job, string.rep("⭐", Wanted)) or ""
+                
+                local NameColor = "#ffffff"
+                if VisCfg.CopESP and (string.match(string.lower(Job), "police") or string.match(string.lower(Job), "cop")) then
+                    NameColor = "#3b82f6" -- Blue for cops
+                elseif Wanted > 0 then
+                    NameColor = "#ef4444" -- Red for criminals
+                end
+                
+                Tag.TextLabel.Text = string.format('<font color="%s">%s</font>%s%s%s', NameColor, Player.Name, HpStr, DistStr, JobStr)
+                Tag.TextLabel.TextSize = VisCfg.TextSize
+            else
+                if EspFolder:FindFirstChild(Player.Name .. "_Tag") then
+                    EspFolder[Player.Name .. "_Tag"]:Destroy()
+                end
+            end
+            
+            -- Chams (Highlights) Logic
+            if VisCfg.Chams and Character and Humanoid and Humanoid.Health > 0 then
+                local Cham = EspFolder:FindFirstChild(Player.Name .. "_Cham")
+                if not Cham then
+                    Cham = Instance.new("Highlight")
+                    Cham.Name = Player.Name .. "_Cham"
+                    Cham.Parent = EspFolder
+                end
+                Cham.Adornee = Character
+                Cham.FillColor = Color3.fromRGB(VisCfg.ChamsFillR, VisCfg.ChamsFillG, VisCfg.ChamsFillB)
+                Cham.OutlineColor = Color3.fromRGB(VisCfg.ChamsOutlineR, VisCfg.ChamsOutlineG, VisCfg.ChamsOutlineB)
+                Cham.FillTransparency = 0.5
+                Cham.OutlineTransparency = 0
+                Cham.DepthMode = Enum.HighlightDepthMode.AlwaysOnTop
+            else
+                if EspFolder:FindFirstChild(Player.Name .. "_Cham") then
+                    EspFolder[Player.Name .. "_Cham"]:Destroy()
+                end
+            end
+        end
+    end
+end)
+
+Players.PlayerRemoving:Connect(CleanupESP)
+
+VisualsTab:Paragraph({Title = "🏷️ Player Nametags"})
+VisualsTab:Toggle({Title = "Enable Nametags", Value = VisCfg.Nametags, Callback = function(v) VisCfg.Nametags = v; SaveMasterConfig() end})
+VisualsTab:Toggle({Title = "Show Distance", Value = VisCfg.ShowDistance, Callback = function(v) VisCfg.ShowDistance = v; SaveMasterConfig() end})
+VisualsTab:Toggle({Title = "Show Health", Value = VisCfg.ShowHealth, Callback = function(v) VisCfg.ShowHealth = v; SaveMasterConfig() end})
+VisualsTab:Toggle({Title = "Show Job & Wanted", Value = VisCfg.ShowJob, Callback = function(v) VisCfg.ShowJob = v; SaveMasterConfig() end})
+VisualsTab:Toggle({Title = "Highlight Cops & Crims", Value = VisCfg.CopESP, Callback = function(v) VisCfg.CopESP = v; SaveMasterConfig() end})
+VisualsTab:Slider({Title = "Text Size", Step = 1, Value = {Min = 8, Max = 24, Default = VisCfg.TextSize}, Callback = function(v) VisCfg.TextSize = v; SaveMasterConfig() end})
+
+VisualsTab:Divider({Text = "✨ Player Highlights (Chams)"})
+VisualsTab:Toggle({Title = "Enable Highlights", Value = VisCfg.Chams, Callback = function(v) VisCfg.Chams = v; SaveMasterConfig() end})
+VisualsTab:Colorpicker({Title = "Fill Color", Default = Color3.fromRGB(VisCfg.ChamsFillR, VisCfg.ChamsFillG, VisCfg.ChamsFillB), Callback = function(c) VisCfg.ChamsFillR = c.R*255; VisCfg.ChamsFillG = c.G*255; VisCfg.ChamsFillB = c.B*255; SaveMasterConfig() end})
+VisualsTab:Colorpicker({Title = "Outline Color", Default = Color3.fromRGB(VisCfg.ChamsOutlineR, VisCfg.ChamsOutlineG, VisCfg.ChamsOutlineB), Callback = function(c) VisCfg.ChamsOutlineR = c.R*255; VisCfg.ChamsOutlineG = c.G*255; VisCfg.ChamsOutlineB = c.B*255; SaveMasterConfig() end})
+
+-- ==============================================================================
+-- TAB 6: ENVIRONMENT & WORLD
+-- ==============================================================================
+local EnvTab = Window:Tab({
+    Title = "World",
+    Icon = "globe"
+})
+
+local EnvCfg = MasterConfig.Environment
+local OriginalLighting = {}
+local SkyboxInstance = Lighting:FindFirstChildOfClass("Sky")
+
+if not SkyboxInstance then
+    SkyboxInstance = Instance.new("Sky", Lighting)
+end
+
+local SkyList = {
+    ["Default"] = {},
+    ["Galaxy"] = {Bk="rbxassetid://159454299",Dn="rbxassetid://159454296",Ft="rbxassetid://159454293",Lf="rbxassetid://159454286",Rt="rbxassetid://159454300",Up="rbxassetid://159454288"},
+    ["Blood Moon"] = {Bk="rbxassetid://7123385217",Dn="rbxassetid://7123387679",Ft="rbxassetid://7123390433",Lf="rbxassetid://7123394786",Rt="rbxassetid://7123402505",Up="rbxassetid://7123412196"},
+    ["Cyberpunk"] = {Bk="rbxassetid://16553658937",Dn="rbxassetid://16553660713",Ft="rbxassetid://16553662144",Lf="rbxassetid://16553664042",Rt="rbxassetid://16553665766",Up="rbxassetid://16553667750"},
+    ["Cloudy"] = {Bk="rbxassetid://570557514",Dn="rbxassetid://570557775",Ft="rbxassetid://570557559",Lf="rbxassetid://570557620",Rt="rbxassetid://570557672",Up="rbxassetid://570557727"}
+}
+
+local function ApplySkybox()
+    local Selected = SkyList[EnvCfg.CustomSky]
+    if Selected and EnvCfg.CustomSky ~= "Default" then
+        SkyboxInstance.SkyboxBk = Selected.Bk
+        SkyboxInstance.SkyboxDn = Selected.Dn
+        SkyboxInstance.SkyboxFt = Selected.Ft
+        SkyboxInstance.SkyboxLf = Selected.Lf
+        SkyboxInstance.SkyboxRt = Selected.Rt
+        SkyboxInstance.SkyboxUp = Selected.Up
+    else
+        -- Fallback to a clear day if default is forced
+        SkyboxInstance.SkyboxBk = "rbxassetid://600886090"
+        SkyboxInstance.SkyboxDn = "rbxassetid://600886090"
+        SkyboxInstance.SkyboxFt = "rbxassetid://600886090"
+        SkyboxInstance.SkyboxLf = "rbxassetid://600886090"
+        SkyboxInstance.SkyboxRt = "rbxassetid://600886090"
+        SkyboxInstance.SkyboxUp = "rbxassetid://600886090"
+    end
+end
+
+RunService.RenderStepped:Connect(function()
+    if EnvCfg.Fullbright then
+        Lighting.Ambient = Color3.new(1, 1, 1)
+        Lighting.OutdoorAmbient = Color3.new(1, 1, 1)
+        Lighting.Brightness = 2
+        Lighting.GlobalShadows = false
+    end
+    if EnvCfg.FreezeTime then
+        Lighting.ClockTime = EnvCfg.ClockTime
+    end
+    if EnvCfg.RemoveFog then
+        Lighting.FogEnd = 9e9
+        if Lighting:FindFirstChildOfClass("Atmosphere") then
+            Lighting:FindFirstChildOfClass("Atmosphere").Density = 0
+        end
+    end
+end)
+
+EnvTab:Paragraph({Title = "🌤️ Environment Controls"})
+EnvTab:Dropdown({Title = "Custom Skybox", Values = {"Default", "Galaxy", "Blood Moon", "Cyberpunk", "Cloudy"}, Value = EnvCfg.CustomSky, Callback = function(v) EnvCfg.CustomSky = v; ApplySkybox(); SaveMasterConfig() end})
+EnvTab:Toggle({Title = "Fullbright (Max Illumination)", Value = EnvCfg.Fullbright, Callback = function(v) EnvCfg.Fullbright = v; SaveMasterConfig() end})
+EnvTab:Toggle({Title = "Remove Fog & Atmosphere", Value = EnvCfg.RemoveFog, Callback = function(v) EnvCfg.RemoveFog = v; SaveMasterConfig() end})
+
+EnvTab:Divider({Text = "🕒 Time Control"})
+EnvTab:Toggle({Title = "Freeze Time", Value = EnvCfg.FreezeTime, Callback = function(v) EnvCfg.FreezeTime = v; SaveMasterConfig() end})
+EnvTab:Slider({Title = "Time of Day", Step = 0.1, Value = {Min = 0, Max = 24, Default = EnvCfg.ClockTime}, Callback = function(v) EnvCfg.ClockTime = v; SaveMasterConfig() end})
+
+EnvTab:Divider({Text = "🚀 Performance"})
+EnvTab:Button({
+    Title = "Execute FPS Boost (Clean Map)",
+    Callback = function()
+        for _, v in pairs(Workspace:GetDescendants()) do
+            if v:IsA("BasePart") and not v.Parent:FindFirstChild("Humanoid") then
+                v.Material = Enum.Material.SmoothPlastic
+                v.Reflectance = 0
+                v.CastShadow = false
+            elseif v:IsA("Decal") or v:IsA("Texture") then
+                v.Transparency = 1
+            end
+        end
+        WindUI:Notify({Title = "Optimized", Content = "Map has been simplified for max FPS.", Duration = 4, Icon = "rocket"})
+    end
+})
+
+-- ==============================================================================
+-- TAB 7: SKINS & COSMETICS
+-- ==============================================================================
+local SkinsTab = Window:Tab({
+    Title = "Cosmetics",
+    Icon = "palette"
+})
+
+local SkinCfg = MasterConfig.Skins
+
+local TexDB = {
+    Weapon = {
+        ["Blood"] = {P="rbxassetid://122271132142798", S="rbxassetid://87911546375139"},
+        ["Gold"] = {P="rbxassetid://102006781490148", S="rbxassetid://102006781490148"},
+        ["Galaxy"] = {P="rbxassetid://122271132142798", S="rbxassetid://83994660888462"},
+        ["Dark Matter"] = {P="rbxassetid://81551553428680", S="rbxassetid://81551553428680"}
+    },
+    Gear = {
+        ["Blood"] = "rbxassetid://122271132142798",
+        ["Gold"] = "rbxassetid://102006781490148",
+        ["Galaxy"] = "rbxassetid://83994660888462",
+        ["Dark Matter"] = "rbxassetid://81551553428680"
+    }
+}
+
+local function ApplyWeaponSkin(Weapon, SkinName, Type)
+    if not Weapon or SkinName == "Default" or not TexDB.Weapon[SkinName] then return end
+    pcall(function()
+        local Prim, Sec = nil, {}
+        if Type == "Sniper" then
+            Prim = Weapon:FindFirstChild("Green")
+            table.insert(Sec, Weapon:FindFirstChild("Base"))
+        elseif Type == "G36" then
+            Prim = Weapon:FindFirstChild("Body")
+            for _, n in ipairs({"Stock", "Scope", "FlashlightBody"}) do
+                if Weapon:FindFirstChild(n) then table.insert(Sec, Weapon[n]) end
+            end
+        end
+        if Prim then Prim.TextureID = TexDB.Weapon[SkinName].P end
+        for _, s in ipairs(Sec) do s.TextureID = TexDB.Weapon[SkinName].S end
+    end)
+end
+
+local function ApplyGearSkin(Gear, SkinName)
+    if not Gear or SkinName == "Default" or not TexDB.Gear[SkinName] then return end
+    pcall(function()
+        local MP = Gear:FindFirstChild("MainPart")
+        if MP then MP.TextureID = TexDB.Gear[SkinName] end
+    end)
+end
+
+task.spawn(function()
+    while task.wait(1) do
+        if SkinCfg.SkinActive then
+            local Targets = {LocalPlayer}
+            if SkinCfg.ApplyToAll then Targets = Players:GetPlayers() end
+
+            for _, P in pairs(Targets) do
+                pcall(function()
+                    local Char = P.Character
+                    if Char then
+                        ApplyWeaponSkin(Char:FindFirstChild("Sniper"), SkinCfg.SniperSkin, "Sniper")
+                        ApplyWeaponSkin(Char:FindFirstChild("G36"), SkinCfg.G36Skin, "G36")
+                        
+                        local Acc = Char:FindFirstChild("PlayerAccessories")
+                        if Acc then
+                            ApplyGearSkin(Acc:FindFirstChild("Criminal Helmet"), SkinCfg.HelmetSkin)
+                            ApplyGearSkin(Acc:FindFirstChild("Criminal Vest"), SkinCfg.VestSkin)
+                        end
+                    end
+                end)
+            end
+        end
+    end
+end)
+
+SkinsTab:Paragraph({Title = "🔫 Weapon Skins", Desc = "Applies textures securely without lag."})
+SkinsTab:Toggle({Title = "Enable Skins", Value = SkinCfg.SkinActive, Callback = function(v) SkinCfg.SkinActive = v; SaveMasterConfig() end})
+SkinsTab:Toggle({Title = "Apply to other players", Value = SkinCfg.ApplyToAll, Callback = function(v) SkinCfg.ApplyToAll = v; SaveMasterConfig() end})
+SkinsTab:Dropdown({Title = "Sniper Skin", Values = {"Default", "Blood", "Gold", "Galaxy", "Dark Matter"}, Value = SkinCfg.SniperSkin, Callback = function(v) SkinCfg.SniperSkin = v; SaveMasterConfig() end})
+SkinsTab:Dropdown({Title = "G36 Skin", Values = {"Default", "Blood", "Gold", "Galaxy", "Dark Matter"}, Value = SkinCfg.G36Skin, Callback = function(v) SkinCfg.G36Skin = v; SaveMasterConfig() end})
+
+SkinsTab:Divider({Text = "🛡️ Gear Skins"})
+SkinsTab:Dropdown({Title = "Helmet Skin", Values = {"Default", "Blood", "Gold", "Galaxy", "Dark Matter"}, Value = SkinCfg.HelmetSkin, Callback = function(v) SkinCfg.HelmetSkin = v; SaveMasterConfig() end})
+SkinsTab:Dropdown({Title = "Vest Skin", Values = {"Default", "Blood", "Gold", "Galaxy", "Dark Matter"}, Value = SkinCfg.VestSkin, Callback = function(v) SkinCfg.VestSkin = v; SaveMasterConfig() end})
