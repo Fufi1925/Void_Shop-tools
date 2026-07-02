@@ -643,6 +643,377 @@ enviorment:Button({
     end
 })
 
+
+local autoTab = Window:Tab({
+    Title = "Auto",
+    Icon = "car"
+})
+
+local HttpService = game:GetService("HttpService")
+local RunService = game:GetService("RunService")
+local UserInputService = game:GetService("UserInputService")
+local Players = game:GetService("Players")
+
+-- === 1. AUTO-SAVE SYSTEM FÜR AUTO TAB ===
+local autoConfigFile = "INFINITYxEH/auto_settings.json"
+
+local AutoCfg = {
+    -- Beleuchtung
+    UGEnabled = false, UGAll = false, UGR = 255, UGG = 0, UGB = 0,
+    HeadlightMod = false, HeadlightBright = 2, HLR = 255, HLG = 255, HLB = 255,
+    
+    -- Optik
+    PaintEnabled = false, PaintAll = false, PaintR = 255, PaintG = 255, PaintB = 255,
+    MatEnabled = false, MatAll = false, MatType = "SmoothPlastic",
+    
+    -- Extras
+    Horn = "Default",
+    PlateEnabled = false, PlateText = "INFINITY", PlateStyle = "Dark",
+    PlateR = 255, PlateG = 255, PlateB = 255,
+    
+    -- Physik
+    CruiseControl = false, CruiseSpeed = 50,
+    DriftMode = false, OffroadGrip = false,
+    SuspensionMode = "Default", Hovercar = false,
+    AutoFlip = false, InstaBrake = false
+}
+
+pcall(function()
+    if isfile(autoConfigFile) then
+        local decoded = HttpService:JSONDecode(readfile(autoConfigFile))
+        for k, v in pairs(decoded) do
+            if type(v) == "table" and v.R then AutoCfg[k] = Color3.new(v.R, v.G, v.B)
+            else AutoCfg[k] = v end
+        end
+    end
+end)
+
+local function saveAutoConfig()
+    pcall(function()
+        local toSave = {}
+        for k, v in pairs(AutoCfg) do
+            if typeof(v) == "Color3" then toSave[k] = {R = v.R, G = v.G, B = v.B}
+            else toSave[k] = v end
+        end
+        writefile(autoConfigFile, HttpService:JSONEncode(toSave))
+    end)
+end
+
+-- === HILFSFUNKTIONEN ===
+local hornList = {
+    ["Default"] = "",
+    ["La Cucaracha"] = "rbxassetid://134764024",
+    ["Zug-Horn"] = "rbxassetid://4580219665",
+    ["Troll / Meme"] = "rbxassetid://6052562028",
+    ["Clown Tröte"] = "rbxassetid://663248386"
+}
+
+local underglowParts = {}
+local OriginalPhysics = {}
+
+local function getLocalCar()
+    local vehicles = workspace:FindFirstChild("Vehicles")
+    if not vehicles then return nil end
+    for _, car in ipairs(vehicles:GetChildren()) do
+        local owner = car:FindFirstChild("Owner")
+        if (owner and owner.Value == Players.LocalPlayer) or car.Name:find(Players.LocalPlayer.Name) then
+            return car
+        end
+    end
+    return nil
+end
+
+-- === UNDERGLOW LOGIK ===
+local function applyUnderglow()
+    for car, data in pairs(underglowParts) do if data.part then data.part:Destroy() end end
+    underglowParts = {}
+
+    if not AutoCfg.UGEnabled then return end
+    local vehicles = workspace:FindFirstChild("Vehicles")
+    if not vehicles then return end
+
+    for _, car in ipairs(vehicles:GetChildren()) do
+        local isMine = false
+        local owner = car:FindFirstChild("Owner")
+        if (owner and owner.Value == Players.LocalPlayer) or car.Name:find(Players.LocalPlayer.Name) then isMine = true end
+
+        if AutoCfg.UGAll or isMine then
+            local body = car:FindFirstChild("Body") and car.Body:FindFirstChild("Body")
+            if body and body:IsA("BasePart") then
+                local p = Instance.new("Part", workspace)
+                p.Size = Vector3.new(4, 0.001, 13)
+                p.Anchored = true; p.CanCollide = false; p.Transparency = 1
+                
+                local l = Instance.new("SurfaceLight", p)
+                l.Face = Enum.NormalId.Bottom; l.Angle = 180; l.Range = 8; l.Brightness = 4
+                l.Color = Color3.fromRGB(AutoCfg.UGR, AutoCfg.UGG, AutoCfg.UGB)
+
+                underglowParts[car] = {part = p, body = body, light = l}
+            end
+        end
+    end
+end
+
+RunService.RenderStepped:Connect(function()
+    for car, data in pairs(underglowParts) do
+        if data.body and data.part then
+            data.part.CFrame = data.body.CFrame * CFrame.new(0, -data.body.Size.Y + 2.5, 0)
+        end
+    end
+end)
+
+local vehFolder = workspace:FindFirstChild("Vehicles")
+if vehFolder then vehFolder.ChildAdded:Connect(applyUnderglow) end
+
+-- === UPDATE LOOP OPTIK (0.5s - Resourcenschonend) ===
+task.spawn(function()
+    while task.wait(0.5) do
+        pcall(function()
+            local vehicles = workspace:FindFirstChild("Vehicles")
+            if not vehicles then return end
+            local myCar = getLocalCar()
+
+            for _, car in ipairs(vehicles:GetChildren()) do
+                local isMine = (car == myCar)
+
+                -- 1. LACKIERUNG & MATERIAL
+                if (isMine and (AutoCfg.PaintEnabled or AutoCfg.MatEnabled)) or (AutoCfg.PaintAll or AutoCfg.MatAll) then
+                    for _, part in ipairs(car:GetDescendants()) do
+                        if part:IsA("BasePart") then
+                            local n = part.Name:lower()
+                            if n:match("body") or n:match("chassis") or n:match("door") or n:match("hood") or n:match("trunk") then
+                                if (isMine and AutoCfg.PaintEnabled) or AutoCfg.PaintAll then
+                                    part.Color = Color3.fromRGB(AutoCfg.PaintR, AutoCfg.PaintG, AutoCfg.PaintB)
+                                end
+                                if (isMine and AutoCfg.MatEnabled) or AutoCfg.MatAll then
+                                    part.Material = Enum.Material[AutoCfg.MatType] or Enum.Material.SmoothPlastic
+                                end
+                            end
+                        end
+                    end
+                end
+
+                -- 2. NUR MEIN AUTO: Scheinwerfer, Hupe, Schild
+                if isMine then
+                    -- Scheinwerfer Mod
+                    if AutoCfg.HeadlightMod then
+                        for _, obj in ipairs(car:GetDescendants()) do
+                            if obj:IsA("SpotLight") or obj:IsA("SurfaceLight") or obj:IsA("PointLight") then
+                                local pName = obj.Parent and obj.Parent.Name:lower() or ""
+                                if pName:match("headlight") or pName:match("light") then
+                                    obj.Color = Color3.fromRGB(AutoCfg.HLR, AutoCfg.HLG, AutoCfg.HLB)
+                                    obj.Brightness = AutoCfg.HeadlightBright
+                                end
+                            end
+                        end
+                    end
+
+                    -- Hupe Fix
+                    if AutoCfg.Horn ~= "Default" then
+                        for _, snd in ipairs(car:GetDescendants()) do
+                            if snd:IsA("Sound") and (snd.Name:lower():match("horn") or snd.Name:lower():match("honk")) then
+                                snd.SoundId = hornList[AutoCfg.Horn]
+                            end
+                        end
+                    end
+
+                    -- Nummernschild Fix & Styles
+                    if AutoCfg.PlateEnabled then
+                        for _, obj in ipairs(car:GetDescendants()) do
+                            if obj:IsA("TextLabel") then
+                                local p1 = obj.Parent and obj.Parent.Name:lower() or ""
+                                local p2 = obj.Parent and obj.Parent.Parent and obj.Parent.Parent.Name:lower() or ""
+                                
+                                if p1:match("plate") or p2:match("plate") or obj.Name:lower():match("plate") or p1:match("license") then
+                                    obj.Text = AutoCfg.PlateText
+                                    local txtColor = Color3.fromRGB(AutoCfg.PlateR, AutoCfg.PlateG, AutoCfg.PlateB)
+                                    local container = obj.Parent
+
+                                    if AutoCfg.PlateStyle == "Dark" then
+                                        container.BackgroundColor3 = Color3.new(0.05, 0.05, 0.05)
+                                        container.BackgroundTransparency = 0
+                                        obj.TextColor3 = txtColor
+                                        obj.TextStrokeTransparency = 1
+                                    elseif AutoCfg.PlateStyle == "White" then
+                                        container.BackgroundColor3 = Color3.new(0.9, 0.9, 0.9)
+                                        container.BackgroundTransparency = 0
+                                        obj.TextColor3 = txtColor
+                                        obj.TextStrokeTransparency = 1
+                                    elseif AutoCfg.PlateStyle == "Redline" then
+                                        container.BackgroundColor3 = Color3.new(0.05, 0.05, 0.05)
+                                        container.BackgroundTransparency = 0
+                                        if container:IsA("Frame") and not container:FindFirstChild("InfStroke") then
+                                            local str = Instance.new("UIStroke", container)
+                                            str.Name = "InfStroke"; str.Color = Color3.new(1, 0, 0); str.Thickness = 2
+                                        end
+                                        obj.TextColor3 = txtColor
+                                    elseif AutoCfg.PlateStyle == "Minimal" then
+                                        container.BackgroundTransparency = 1
+                                        if container:FindFirstChild("InfStroke") then container.InfStroke:Destroy() end
+                                        obj.TextColor3 = txtColor
+                                        obj.TextStrokeTransparency = 1
+                                    elseif AutoCfg.PlateStyle == "Neon" then
+                                        container.BackgroundColor3 = Color3.new(0, 0, 0)
+                                        container.BackgroundTransparency = 0
+                                        obj.TextColor3 = txtColor
+                                        obj.TextStrokeColor3 = txtColor
+                                        obj.TextStrokeTransparency = 0.5
+                                    end
+                                end
+                            end
+                        end
+                    end
+                end
+            end
+        end)
+    end
+end)
+
+-- === UPDATE LOOP PHYSIK (Heartbeat - Sehr schnell) ===
+local IsBraking = false
+UserInputService.InputBegan:Connect(function(input, gpe)
+    if not gpe and input.KeyCode == Enum.KeyCode.S then IsBraking = true end
+end)
+UserInputService.InputEnded:Connect(function(input, gpe)
+    if not gpe and input.KeyCode == Enum.KeyCode.S then IsBraking = false end
+end)
+
+RunService.Heartbeat:Connect(function()
+    pcall(function()
+        local myCar = getLocalCar()
+        if not myCar then OriginalPhysics = {}; return end
+
+        local DriveSeat = myCar:FindFirstChild("DriveSeat") or myCar:FindFirstChildOfClass("VehicleSeat")
+        local Root = myCar.PrimaryPart or (DriveSeat and DriveSeat.Parent)
+        if not Root then return end
+
+        -- 1. Tempomat
+        if AutoCfg.CruiseControl and DriveSeat and DriveSeat.Occupant then
+            local currentSpeed = Root.AssemblyLinearVelocity.Magnitude * 1.09 
+            if DriveSeat.Throttle == 1 and currentSpeed > AutoCfg.CruiseSpeed then
+                local dir = Root.CFrame.LookVector
+                Root.AssemblyLinearVelocity = dir * (AutoCfg.CruiseSpeed / 1.09)
+            end
+        end
+
+        -- 2. Insta-Brake
+        if AutoCfg.InstaBrake and IsBraking and Root.AssemblyLinearVelocity.Magnitude > 5 then
+            Root.AssemblyLinearVelocity = Root.AssemblyLinearVelocity * 0.90
+        end
+
+        -- 3. Auto-Flipper
+        if AutoCfg.AutoFlip then
+            local zRot = select(3, Root.CFrame:ToEulerAnglesXYZ())
+            if math.abs(math.deg(zRot)) > 80 then
+                Root.CFrame = Root.CFrame * CFrame.Angles(0, 0, -zRot) + Vector3.new(0, 3, 0)
+                Root.AssemblyAngularVelocity = Vector3.zero
+            end
+        end
+
+        -- 4. Rad-Physik (Drift & Offroad)
+        for _, v in ipairs(myCar:GetDescendants()) do
+            if v:IsA("BasePart") and (v.Name:lower():match("wheel") or v.Name:lower():match("tire")) then
+                if not OriginalPhysics[v] then
+                    OriginalPhysics[v] = { Prop = v.CustomPhysicalProperties or PhysicalProperties.new(v.Material), Collide = v.CanCollide }
+                end
+
+                if AutoCfg.Hovercar then
+                    v.CanCollide = false
+                else
+                    v.CanCollide = OriginalPhysics[v].Collide
+                    if AutoCfg.DriftMode then
+                        v.CustomPhysicalProperties = PhysicalProperties.new(0.1, 0, 0, 100, 100) 
+                    elseif AutoCfg.OffroadGrip then
+                        v.CustomPhysicalProperties = PhysicalProperties.new(2, 1, 0, 100, 100) 
+                    else
+                        v.CustomPhysicalProperties = OriginalPhysics[v].Prop
+                    end
+                end
+            end
+        end
+
+        -- 5. Hovercar Auftrieb
+        if AutoCfg.Hovercar then
+            local upForce = workspace.Gravity * Root.AssemblyMass
+            Root:ApplyImpulse(Vector3.new(0, upForce * 1.01, 0)) 
+        end
+
+        -- 6. Federung (Suspension)
+        for _, v in ipairs(myCar:GetDescendants()) do
+            if v:IsA("SpringConstraint") or v:IsA("CylindricalConstraint") then
+                if not OriginalPhysics[v] then
+                    OriginalPhysics[v] = { MaxL = v.MaxLength, MinL = v.MinLength, Damp = v.Damping, Stiff = v.Stiffness }
+                end
+
+                if AutoCfg.SuspensionMode == "Monster Truck" then
+                    v.MaxLength = OriginalPhysics[v].MaxL * 2
+                    v.MinLength = OriginalPhysics[v].MinL * 2
+                    v.Stiffness = OriginalPhysics[v].Stiff * 1.5
+                elseif AutoCfg.SuspensionMode == "Slammed" then
+                    v.MaxLength = 0.5
+                    v.MinLength = 0.1
+                elseif AutoCfg.SuspensionMode == "Bouncy" then
+                    v.Damping = 0
+                    v.Stiffness = OriginalPhysics[v].Stiff / 3
+                else
+                    v.MaxLength = OriginalPhysics[v].MaxL
+                    v.MinLength = OriginalPhysics[v].MinL
+                    v.Damping = OriginalPhysics[v].Damp
+                    v.Stiffness = OriginalPhysics[v].Stiff
+                end
+            end
+        end
+    end)
+end)
+
+-- === UI MENÜ AUFBAU ===
+
+autoTab:Paragraph({Title = "💡 Beleuchtung"})
+autoTab:Toggle({Title = "Underglow an/aus", Value = AutoCfg.UGEnabled, Callback = function(v) AutoCfg.UGEnabled = v; applyUnderglow(); saveAutoConfig() end})
+autoTab:Toggle({Title = "Für alle Autos anzeigen", Value = AutoCfg.UGAll, Callback = function(v) AutoCfg.UGAll = v; applyUnderglow(); saveAutoConfig() end})
+autoTab:Colorpicker({Title = "Underglow Farbe", Default = Color3.fromRGB(AutoCfg.UGR, AutoCfg.UGG, AutoCfg.UGB), Callback = function(c) AutoCfg.UGR=c.R*255; AutoCfg.UGG=c.G*255; AutoCfg.UGB=c.B*255; for _,d in pairs(underglowParts) do d.light.Color = c end; saveAutoConfig() end})
+
+autoTab:Divider()
+autoTab:Toggle({Title = "Custom Scheinwerfer", Value = AutoCfg.HeadlightMod, Callback = function(v) AutoCfg.HeadlightMod = v; saveAutoConfig() end})
+autoTab:Slider({Title = "Scheinwerfer Helligkeit", Step = 1, Value = {Min = 1, Max = 10, Default = AutoCfg.HeadlightBright}, Callback = function(v) AutoCfg.HeadlightBright = v; saveAutoConfig() end})
+autoTab:Colorpicker({Title = "Scheinwerfer Farbe", Default = Color3.fromRGB(AutoCfg.HLR, AutoCfg.HLG, AutoCfg.HLB), Callback = function(c) AutoCfg.HLR=c.R*255; AutoCfg.HLG=c.G*255; AutoCfg.HLB=c.B*255; saveAutoConfig() end})
+
+autoTab:Paragraph({Title = "🎨 Lackierung & Material"})
+autoTab:Toggle({Title = "Eigene Auto-Farbe", Value = AutoCfg.PaintEnabled, Callback = function(v) AutoCfg.PaintEnabled = v; saveAutoConfig() end})
+autoTab:Colorpicker({Title = "Farbe wählen", Default = Color3.fromRGB(AutoCfg.PaintR, AutoCfg.PaintG, AutoCfg.PaintB), Callback = function(c) AutoCfg.PaintR=c.R*255; AutoCfg.PaintG=c.G*255; AutoCfg.PaintB=c.B*255; saveAutoConfig() end})
+autoTab:Toggle({Title = "Farbe auf ALLE Autos anwenden", Value = AutoCfg.PaintAll, Callback = function(v) AutoCfg.PaintAll = v; saveAutoConfig() end})
+
+autoTab:Divider()
+autoTab:Toggle({Title = "Eigenes Material", Value = AutoCfg.MatEnabled, Callback = function(v) AutoCfg.MatEnabled = v; saveAutoConfig() end})
+autoTab:Dropdown({Title = "Material wählen", Values = {"SmoothPlastic", "Neon", "ForceField", "Glass", "Foil"}, Value = AutoCfg.MatType, Callback = function(v) AutoCfg.MatType = v; saveAutoConfig() end})
+autoTab:Toggle({Title = "Material auf ALLE Autos anwenden", Value = AutoCfg.MatAll, Callback = function(v) AutoCfg.MatAll = v; saveAutoConfig() end})
+
+autoTab:Paragraph({Title = "🏷️ Extras (Hupe & Schild)"})
+autoTab:Dropdown({Title = "Custom Hupe", Values = {"Default", "La Cucaracha", "Zug-Horn", "Troll / Meme", "Clown Tröte"}, Value = AutoCfg.Horn, Callback = function(v) AutoCfg.Horn = v; saveAutoConfig() end})
+
+autoTab:Divider()
+autoTab:Toggle({Title = "Custom Nummernschild", Value = AutoCfg.PlateEnabled, Callback = function(v) AutoCfg.PlateEnabled = v; saveAutoConfig() end})
+autoTab:Input({Title = "Nummernschild Text", Placeholder = "INFINITY", Callback = function(t) if t ~= "" then AutoCfg.PlateText = t; saveAutoConfig() end end})
+autoTab:Dropdown({Title = "Nummernschild Style", Values = {"Dark", "White", "Redline", "Minimal", "Neon"}, Value = AutoCfg.PlateStyle, Callback = function(v) AutoCfg.PlateStyle = v; saveAutoConfig() end})
+autoTab:Colorpicker({Title = "Nummernschild Text-Farbe", Default = Color3.fromRGB(AutoCfg.PlateR, AutoCfg.PlateG, AutoCfg.PlateB), Callback = function(c) AutoCfg.PlateR=c.R*255; AutoCfg.PlateG=c.G*255; AutoCfg.PlateB=c.B*255; saveAutoConfig() end})
+
+autoTab:Paragraph({Title = "🚀 Fahrphysik & Tuning (Client-Side)"})
+autoTab:Toggle({Title = "Tempomat (Cruise Control)", Value = AutoCfg.CruiseControl, Callback = function(v) AutoCfg.CruiseControl = v; saveAutoConfig() end})
+autoTab:Slider({Title = "Tempomat KM/H", Step = 1, Value = {Min = 10, Max = 300, Default = AutoCfg.CruiseSpeed}, Callback = function(v) AutoCfg.CruiseSpeed = v; saveAutoConfig() end})
+
+autoTab:Divider()
+autoTab:Toggle({Title = "Drift Mode (Glatte Reifen)", Value = AutoCfg.DriftMode, Callback = function(v) AutoCfg.DriftMode = v; saveAutoConfig() end})
+autoTab:Toggle({Title = "Offroad Grip (Berg-Modus)", Value = AutoCfg.OffroadGrip, Callback = function(v) AutoCfg.OffroadGrip = v; saveAutoConfig() end})
+
+autoTab:Divider()
+autoTab:Dropdown({Title = "Federung (Suspension)", Values = {"Default", "Monster Truck", "Slammed", "Bouncy"}, Value = AutoCfg.SuspensionMode, Callback = function(v) AutoCfg.SuspensionMode = v; saveAutoConfig() end})
+autoTab:Toggle({Title = "Hovercar (Schwebe-Modus)", Value = AutoCfg.Hovercar, Callback = function(v) AutoCfg.Hovercar = v; saveAutoConfig() end})
+
+autoTab:Divider()
+autoTab:Toggle({Title = "Auto-Flipper (Anti-Turtle)", Value = AutoCfg.AutoFlip, Callback = function(v) AutoCfg.AutoFlip = v; saveAutoConfig() end})
+autoTab:Toggle({Title = "Insta-Brake (Anker werfen auf 'S')", Value = AutoCfg.InstaBrake, Callback = function(v) AutoCfg.InstaBrake = v; saveAutoConfig() end})
+
+
 skins = Window:Tab({
     Title = "Skins",
     Icon = "droplets"
@@ -2435,373 +2806,3 @@ Window:OnDestroy(function()
     if watermarkConn then watermarkConn:Disconnect() end
     if watermarkGui then watermarkGui:Destroy() end
 end)
-
-
-local autoTab = Window:Tab({
-    Title = "Auto",
-    Icon = "car"
-})
-
-local HttpService = game:GetService("HttpService")
-local RunService = game:GetService("RunService")
-local UserInputService = game:GetService("UserInputService")
-local Players = game:GetService("Players")
-
--- === 1. AUTO-SAVE SYSTEM FÜR AUTO TAB ===
-local autoConfigFile = "INFINITYxEH/auto_settings.json"
-
-local AutoCfg = {
-    -- Beleuchtung
-    UGEnabled = false, UGAll = false, UGR = 255, UGG = 0, UGB = 0,
-    HeadlightMod = false, HeadlightBright = 2, HLR = 255, HLG = 255, HLB = 255,
-    
-    -- Optik
-    PaintEnabled = false, PaintAll = false, PaintR = 255, PaintG = 255, PaintB = 255,
-    MatEnabled = false, MatAll = false, MatType = "SmoothPlastic",
-    
-    -- Extras
-    Horn = "Default",
-    PlateEnabled = false, PlateText = "INFINITY", PlateStyle = "Dark",
-    PlateR = 255, PlateG = 255, PlateB = 255,
-    
-    -- Physik
-    CruiseControl = false, CruiseSpeed = 50,
-    DriftMode = false, OffroadGrip = false,
-    SuspensionMode = "Default", Hovercar = false,
-    AutoFlip = false, InstaBrake = false
-}
-
-pcall(function()
-    if isfile(autoConfigFile) then
-        local decoded = HttpService:JSONDecode(readfile(autoConfigFile))
-        for k, v in pairs(decoded) do
-            if type(v) == "table" and v.R then AutoCfg[k] = Color3.new(v.R, v.G, v.B)
-            else AutoCfg[k] = v end
-        end
-    end
-end)
-
-local function saveAutoConfig()
-    pcall(function()
-        local toSave = {}
-        for k, v in pairs(AutoCfg) do
-            if typeof(v) == "Color3" then toSave[k] = {R = v.R, G = v.G, B = v.B}
-            else toSave[k] = v end
-        end
-        writefile(autoConfigFile, HttpService:JSONEncode(toSave))
-    end)
-end
-
--- === HILFSFUNKTIONEN ===
-local hornList = {
-    ["Default"] = "",
-    ["La Cucaracha"] = "rbxassetid://134764024",
-    ["Zug-Horn"] = "rbxassetid://4580219665",
-    ["Troll / Meme"] = "rbxassetid://6052562028",
-    ["Clown Tröte"] = "rbxassetid://663248386"
-}
-
-local underglowParts = {}
-local OriginalPhysics = {}
-
-local function getLocalCar()
-    local vehicles = workspace:FindFirstChild("Vehicles")
-    if not vehicles then return nil end
-    for _, car in ipairs(vehicles:GetChildren()) do
-        local owner = car:FindFirstChild("Owner")
-        if (owner and owner.Value == Players.LocalPlayer) or car.Name:find(Players.LocalPlayer.Name) then
-            return car
-        end
-    end
-    return nil
-end
-
--- === UNDERGLOW LOGIK ===
-local function applyUnderglow()
-    for car, data in pairs(underglowParts) do if data.part then data.part:Destroy() end end
-    underglowParts = {}
-
-    if not AutoCfg.UGEnabled then return end
-    local vehicles = workspace:FindFirstChild("Vehicles")
-    if not vehicles then return end
-
-    for _, car in ipairs(vehicles:GetChildren()) do
-        local isMine = false
-        local owner = car:FindFirstChild("Owner")
-        if (owner and owner.Value == Players.LocalPlayer) or car.Name:find(Players.LocalPlayer.Name) then isMine = true end
-
-        if AutoCfg.UGAll or isMine then
-            local body = car:FindFirstChild("Body") and car.Body:FindFirstChild("Body")
-            if body and body:IsA("BasePart") then
-                local p = Instance.new("Part", workspace)
-                p.Size = Vector3.new(4, 0.001, 13)
-                p.Anchored = true; p.CanCollide = false; p.Transparency = 1
-                
-                local l = Instance.new("SurfaceLight", p)
-                l.Face = Enum.NormalId.Bottom; l.Angle = 180; l.Range = 8; l.Brightness = 4
-                l.Color = Color3.fromRGB(AutoCfg.UGR, AutoCfg.UGG, AutoCfg.UGB)
-
-                underglowParts[car] = {part = p, body = body, light = l}
-            end
-        end
-    end
-end
-
-RunService.RenderStepped:Connect(function()
-    for car, data in pairs(underglowParts) do
-        if data.body and data.part then
-            data.part.CFrame = data.body.CFrame * CFrame.new(0, -data.body.Size.Y + 2.5, 0)
-        end
-    end
-end)
-
-local vehFolder = workspace:FindFirstChild("Vehicles")
-if vehFolder then vehFolder.ChildAdded:Connect(applyUnderglow) end
-
--- === UPDATE LOOP OPTIK (0.5s - Resourcenschonend) ===
-task.spawn(function()
-    while task.wait(0.5) do
-        pcall(function()
-            local vehicles = workspace:FindFirstChild("Vehicles")
-            if not vehicles then return end
-            local myCar = getLocalCar()
-
-            for _, car in ipairs(vehicles:GetChildren()) do
-                local isMine = (car == myCar)
-
-                -- 1. LACKIERUNG & MATERIAL
-                if (isMine and (AutoCfg.PaintEnabled or AutoCfg.MatEnabled)) or (AutoCfg.PaintAll or AutoCfg.MatAll) then
-                    for _, part in ipairs(car:GetDescendants()) do
-                        if part:IsA("BasePart") then
-                            local n = part.Name:lower()
-                            if n:match("body") or n:match("chassis") or n:match("door") or n:match("hood") or n:match("trunk") then
-                                if (isMine and AutoCfg.PaintEnabled) or AutoCfg.PaintAll then
-                                    part.Color = Color3.fromRGB(AutoCfg.PaintR, AutoCfg.PaintG, AutoCfg.PaintB)
-                                end
-                                if (isMine and AutoCfg.MatEnabled) or AutoCfg.MatAll then
-                                    part.Material = Enum.Material[AutoCfg.MatType] or Enum.Material.SmoothPlastic
-                                end
-                            end
-                        end
-                    end
-                end
-
-                -- 2. NUR MEIN AUTO: Scheinwerfer, Hupe, Schild
-                if isMine then
-                    -- Scheinwerfer Mod
-                    if AutoCfg.HeadlightMod then
-                        for _, obj in ipairs(car:GetDescendants()) do
-                            if obj:IsA("SpotLight") or obj:IsA("SurfaceLight") or obj:IsA("PointLight") then
-                                local pName = obj.Parent and obj.Parent.Name:lower() or ""
-                                if pName:match("headlight") or pName:match("light") then
-                                    obj.Color = Color3.fromRGB(AutoCfg.HLR, AutoCfg.HLG, AutoCfg.HLB)
-                                    obj.Brightness = AutoCfg.HeadlightBright
-                                end
-                            end
-                        end
-                    end
-
-                    -- Hupe Fix
-                    if AutoCfg.Horn ~= "Default" then
-                        for _, snd in ipairs(car:GetDescendants()) do
-                            if snd:IsA("Sound") and (snd.Name:lower():match("horn") or snd.Name:lower():match("honk")) then
-                                snd.SoundId = hornList[AutoCfg.Horn]
-                            end
-                        end
-                    end
-
-                    -- Nummernschild Fix & Styles
-                    if AutoCfg.PlateEnabled then
-                        for _, obj in ipairs(car:GetDescendants()) do
-                            if obj:IsA("TextLabel") then
-                                local p1 = obj.Parent and obj.Parent.Name:lower() or ""
-                                local p2 = obj.Parent and obj.Parent.Parent and obj.Parent.Parent.Name:lower() or ""
-                                
-                                if p1:match("plate") or p2:match("plate") or obj.Name:lower():match("plate") or p1:match("license") then
-                                    obj.Text = AutoCfg.PlateText
-                                    local txtColor = Color3.fromRGB(AutoCfg.PlateR, AutoCfg.PlateG, AutoCfg.PlateB)
-                                    local container = obj.Parent
-
-                                    if AutoCfg.PlateStyle == "Dark" then
-                                        container.BackgroundColor3 = Color3.new(0.05, 0.05, 0.05)
-                                        container.BackgroundTransparency = 0
-                                        obj.TextColor3 = txtColor
-                                        obj.TextStrokeTransparency = 1
-                                    elseif AutoCfg.PlateStyle == "White" then
-                                        container.BackgroundColor3 = Color3.new(0.9, 0.9, 0.9)
-                                        container.BackgroundTransparency = 0
-                                        obj.TextColor3 = txtColor
-                                        obj.TextStrokeTransparency = 1
-                                    elseif AutoCfg.PlateStyle == "Redline" then
-                                        container.BackgroundColor3 = Color3.new(0.05, 0.05, 0.05)
-                                        container.BackgroundTransparency = 0
-                                        if container:IsA("Frame") and not container:FindFirstChild("InfStroke") then
-                                            local str = Instance.new("UIStroke", container)
-                                            str.Name = "InfStroke"; str.Color = Color3.new(1, 0, 0); str.Thickness = 2
-                                        end
-                                        obj.TextColor3 = txtColor
-                                    elseif AutoCfg.PlateStyle == "Minimal" then
-                                        container.BackgroundTransparency = 1
-                                        if container:FindFirstChild("InfStroke") then container.InfStroke:Destroy() end
-                                        obj.TextColor3 = txtColor
-                                        obj.TextStrokeTransparency = 1
-                                    elseif AutoCfg.PlateStyle == "Neon" then
-                                        container.BackgroundColor3 = Color3.new(0, 0, 0)
-                                        container.BackgroundTransparency = 0
-                                        obj.TextColor3 = txtColor
-                                        obj.TextStrokeColor3 = txtColor
-                                        obj.TextStrokeTransparency = 0.5
-                                    end
-                                end
-                            end
-                        end
-                    end
-                end
-            end
-        end)
-    end
-end)
-
--- === UPDATE LOOP PHYSIK (Heartbeat - Sehr schnell) ===
-local IsBraking = false
-UserInputService.InputBegan:Connect(function(input, gpe)
-    if not gpe and input.KeyCode == Enum.KeyCode.S then IsBraking = true end
-end)
-UserInputService.InputEnded:Connect(function(input, gpe)
-    if not gpe and input.KeyCode == Enum.KeyCode.S then IsBraking = false end
-end)
-
-RunService.Heartbeat:Connect(function()
-    pcall(function()
-        local myCar = getLocalCar()
-        if not myCar then OriginalPhysics = {}; return end
-
-        local DriveSeat = myCar:FindFirstChild("DriveSeat") or myCar:FindFirstChildOfClass("VehicleSeat")
-        local Root = myCar.PrimaryPart or (DriveSeat and DriveSeat.Parent)
-        if not Root then return end
-
-        -- 1. Tempomat
-        if AutoCfg.CruiseControl and DriveSeat and DriveSeat.Occupant then
-            local currentSpeed = Root.AssemblyLinearVelocity.Magnitude * 1.09 
-            if DriveSeat.Throttle == 1 and currentSpeed > AutoCfg.CruiseSpeed then
-                local dir = Root.CFrame.LookVector
-                Root.AssemblyLinearVelocity = dir * (AutoCfg.CruiseSpeed / 1.09)
-            end
-        end
-
-        -- 2. Insta-Brake
-        if AutoCfg.InstaBrake and IsBraking and Root.AssemblyLinearVelocity.Magnitude > 5 then
-            Root.AssemblyLinearVelocity = Root.AssemblyLinearVelocity * 0.90
-        end
-
-        -- 3. Auto-Flipper
-        if AutoCfg.AutoFlip then
-            local zRot = select(3, Root.CFrame:ToEulerAnglesXYZ())
-            if math.abs(math.deg(zRot)) > 80 then
-                Root.CFrame = Root.CFrame * CFrame.Angles(0, 0, -zRot) + Vector3.new(0, 3, 0)
-                Root.AssemblyAngularVelocity = Vector3.zero
-            end
-        end
-
-        -- 4. Rad-Physik (Drift & Offroad)
-        for _, v in ipairs(myCar:GetDescendants()) do
-            if v:IsA("BasePart") and (v.Name:lower():match("wheel") or v.Name:lower():match("tire")) then
-                if not OriginalPhysics[v] then
-                    OriginalPhysics[v] = { Prop = v.CustomPhysicalProperties or PhysicalProperties.new(v.Material), Collide = v.CanCollide }
-                end
-
-                if AutoCfg.Hovercar then
-                    v.CanCollide = false
-                else
-                    v.CanCollide = OriginalPhysics[v].Collide
-                    if AutoCfg.DriftMode then
-                        v.CustomPhysicalProperties = PhysicalProperties.new(0.1, 0, 0, 100, 100) 
-                    elseif AutoCfg.OffroadGrip then
-                        v.CustomPhysicalProperties = PhysicalProperties.new(2, 1, 0, 100, 100) 
-                    else
-                        v.CustomPhysicalProperties = OriginalPhysics[v].Prop
-                    end
-                end
-            end
-        end
-
-        -- 5. Hovercar Auftrieb
-        if AutoCfg.Hovercar then
-            local upForce = workspace.Gravity * Root.AssemblyMass
-            Root:ApplyImpulse(Vector3.new(0, upForce * 1.01, 0)) 
-        end
-
-        -- 6. Federung (Suspension)
-        for _, v in ipairs(myCar:GetDescendants()) do
-            if v:IsA("SpringConstraint") or v:IsA("CylindricalConstraint") then
-                if not OriginalPhysics[v] then
-                    OriginalPhysics[v] = { MaxL = v.MaxLength, MinL = v.MinLength, Damp = v.Damping, Stiff = v.Stiffness }
-                end
-
-                if AutoCfg.SuspensionMode == "Monster Truck" then
-                    v.MaxLength = OriginalPhysics[v].MaxL * 2
-                    v.MinLength = OriginalPhysics[v].MinL * 2
-                    v.Stiffness = OriginalPhysics[v].Stiff * 1.5
-                elseif AutoCfg.SuspensionMode == "Slammed" then
-                    v.MaxLength = 0.5
-                    v.MinLength = 0.1
-                elseif AutoCfg.SuspensionMode == "Bouncy" then
-                    v.Damping = 0
-                    v.Stiffness = OriginalPhysics[v].Stiff / 3
-                else
-                    v.MaxLength = OriginalPhysics[v].MaxL
-                    v.MinLength = OriginalPhysics[v].MinL
-                    v.Damping = OriginalPhysics[v].Damp
-                    v.Stiffness = OriginalPhysics[v].Stiff
-                end
-            end
-        end
-    end)
-end)
-
--- === UI MENÜ AUFBAU ===
-
-autoTab:Paragraph({Title = "💡 Beleuchtung"})
-autoTab:Toggle({Title = "Underglow an/aus", Value = AutoCfg.UGEnabled, Callback = function(v) AutoCfg.UGEnabled = v; applyUnderglow(); saveAutoConfig() end})
-autoTab:Toggle({Title = "Für alle Autos anzeigen", Value = AutoCfg.UGAll, Callback = function(v) AutoCfg.UGAll = v; applyUnderglow(); saveAutoConfig() end})
-autoTab:Colorpicker({Title = "Underglow Farbe", Default = Color3.fromRGB(AutoCfg.UGR, AutoCfg.UGG, AutoCfg.UGB), Callback = function(c) AutoCfg.UGR=c.R*255; AutoCfg.UGG=c.G*255; AutoCfg.UGB=c.B*255; for _,d in pairs(underglowParts) do d.light.Color = c end; saveAutoConfig() end})
-
-autoTab:Divider()
-autoTab:Toggle({Title = "Custom Scheinwerfer", Value = AutoCfg.HeadlightMod, Callback = function(v) AutoCfg.HeadlightMod = v; saveAutoConfig() end})
-autoTab:Slider({Title = "Scheinwerfer Helligkeit", Step = 1, Value = {Min = 1, Max = 10, Default = AutoCfg.HeadlightBright}, Callback = function(v) AutoCfg.HeadlightBright = v; saveAutoConfig() end})
-autoTab:Colorpicker({Title = "Scheinwerfer Farbe", Default = Color3.fromRGB(AutoCfg.HLR, AutoCfg.HLG, AutoCfg.HLB), Callback = function(c) AutoCfg.HLR=c.R*255; AutoCfg.HLG=c.G*255; AutoCfg.HLB=c.B*255; saveAutoConfig() end})
-
-autoTab:Paragraph({Title = "🎨 Lackierung & Material"})
-autoTab:Toggle({Title = "Eigene Auto-Farbe", Value = AutoCfg.PaintEnabled, Callback = function(v) AutoCfg.PaintEnabled = v; saveAutoConfig() end})
-autoTab:Colorpicker({Title = "Farbe wählen", Default = Color3.fromRGB(AutoCfg.PaintR, AutoCfg.PaintG, AutoCfg.PaintB), Callback = function(c) AutoCfg.PaintR=c.R*255; AutoCfg.PaintG=c.G*255; AutoCfg.PaintB=c.B*255; saveAutoConfig() end})
-autoTab:Toggle({Title = "Farbe auf ALLE Autos anwenden", Value = AutoCfg.PaintAll, Callback = function(v) AutoCfg.PaintAll = v; saveAutoConfig() end})
-
-autoTab:Divider()
-autoTab:Toggle({Title = "Eigenes Material", Value = AutoCfg.MatEnabled, Callback = function(v) AutoCfg.MatEnabled = v; saveAutoConfig() end})
-autoTab:Dropdown({Title = "Material wählen", Values = {"SmoothPlastic", "Neon", "ForceField", "Glass", "Foil"}, Value = AutoCfg.MatType, Callback = function(v) AutoCfg.MatType = v; saveAutoConfig() end})
-autoTab:Toggle({Title = "Material auf ALLE Autos anwenden", Value = AutoCfg.MatAll, Callback = function(v) AutoCfg.MatAll = v; saveAutoConfig() end})
-
-autoTab:Paragraph({Title = "🏷️ Extras (Hupe & Schild)"})
-autoTab:Dropdown({Title = "Custom Hupe", Values = {"Default", "La Cucaracha", "Zug-Horn", "Troll / Meme", "Clown Tröte"}, Value = AutoCfg.Horn, Callback = function(v) AutoCfg.Horn = v; saveAutoConfig() end})
-
-autoTab:Divider()
-autoTab:Toggle({Title = "Custom Nummernschild", Value = AutoCfg.PlateEnabled, Callback = function(v) AutoCfg.PlateEnabled = v; saveAutoConfig() end})
-autoTab:Input({Title = "Nummernschild Text", Placeholder = "INFINITY", Callback = function(t) if t ~= "" then AutoCfg.PlateText = t; saveAutoConfig() end end})
-autoTab:Dropdown({Title = "Nummernschild Style", Values = {"Dark", "White", "Redline", "Minimal", "Neon"}, Value = AutoCfg.PlateStyle, Callback = function(v) AutoCfg.PlateStyle = v; saveAutoConfig() end})
-autoTab:Colorpicker({Title = "Nummernschild Text-Farbe", Default = Color3.fromRGB(AutoCfg.PlateR, AutoCfg.PlateG, AutoCfg.PlateB), Callback = function(c) AutoCfg.PlateR=c.R*255; AutoCfg.PlateG=c.G*255; AutoCfg.PlateB=c.B*255; saveAutoConfig() end})
-
-autoTab:Paragraph({Title = "🚀 Fahrphysik & Tuning (Client-Side)"})
-autoTab:Toggle({Title = "Tempomat (Cruise Control)", Value = AutoCfg.CruiseControl, Callback = function(v) AutoCfg.CruiseControl = v; saveAutoConfig() end})
-autoTab:Slider({Title = "Tempomat KM/H", Step = 1, Value = {Min = 10, Max = 300, Default = AutoCfg.CruiseSpeed}, Callback = function(v) AutoCfg.CruiseSpeed = v; saveAutoConfig() end})
-
-autoTab:Divider()
-autoTab:Toggle({Title = "Drift Mode (Glatte Reifen)", Value = AutoCfg.DriftMode, Callback = function(v) AutoCfg.DriftMode = v; saveAutoConfig() end})
-autoTab:Toggle({Title = "Offroad Grip (Berg-Modus)", Value = AutoCfg.OffroadGrip, Callback = function(v) AutoCfg.OffroadGrip = v; saveAutoConfig() end})
-
-autoTab:Divider()
-autoTab:Dropdown({Title = "Federung (Suspension)", Values = {"Default", "Monster Truck", "Slammed", "Bouncy"}, Value = AutoCfg.SuspensionMode, Callback = function(v) AutoCfg.SuspensionMode = v; saveAutoConfig() end})
-autoTab:Toggle({Title = "Hovercar (Schwebe-Modus)", Value = AutoCfg.Hovercar, Callback = function(v) AutoCfg.Hovercar = v; saveAutoConfig() end})
-
-autoTab:Divider()
-autoTab:Toggle({Title = "Auto-Flipper (Anti-Turtle)", Value = AutoCfg.AutoFlip, Callback = function(v) AutoCfg.AutoFlip = v; saveAutoConfig() end})
-autoTab:Toggle({Title = "Insta-Brake (Anker werfen auf 'S')", Value = AutoCfg.InstaBrake, Callback = function(v) AutoCfg.InstaBrake = v; saveAutoConfig() end})
