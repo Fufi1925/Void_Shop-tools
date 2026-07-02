@@ -723,33 +723,48 @@ local function getLocalCar()
     return nil
 end
 
--- === UNDERGLOW LOGIK ===
 local function applyUnderglow()
-    for car, data in pairs(underglowParts) do if data.part then data.part:Destroy() end end
-    underglowParts = {}
+    -- Wenn deaktiviert: alles sauber entfernen & abbrechen
+    if not AutoCfg.UGEnabled then
+        for car, data in pairs(underglowParts) do 
+            if data.part then data.part:Destroy() end 
+        end
+        underglowParts = {}
+        return
+    end
 
-    if not AutoCfg.UGEnabled then return end
     local vehicles = workspace:FindFirstChild("Vehicles")
     if not vehicles then return end
 
     for _, car in ipairs(vehicles:GetChildren()) do
         local isMine = false
         local owner = car:FindFirstChild("Owner")
-        if (owner and owner.Value == Players.LocalPlayer) or car.Name:find(Players.LocalPlayer.Name) then isMine = true end
+        if (owner and owner.Value == Players.LocalPlayer) or car.Name:find(Players.LocalPlayer.Name) then 
+            isMine = true 
+        end
 
         if AutoCfg.UGAll or isMine then
             local body = car:FindFirstChild("Body") and car.Body:FindFirstChild("Body")
             if body and body:IsA("BasePart") then
-                local p = Instance.new("Part", workspace)
-                p.Size = Vector3.new(4, 0.001, 13)
-                p.Anchored = true; p.CanCollide = false; p.Transparency = 1
-                
-                local l = Instance.new("SurfaceLight", p)
-                l.Face = Enum.NormalId.Bottom; l.Angle = 180; l.Range = 8; l.Brightness = 4
-                l.Color = Color3.fromRGB(AutoCfg.UGR, AutoCfg.UGG, AutoCfg.UGB)
-
-                underglowParts[car] = {part = p, body = body, light = l}
+                -- Part nur ERSTELLEN, wenn er noch nicht existiert
+                if not underglowParts[car] then
+                    local p = Instance.new("Part")
+                    p.Size = Vector3.new(4, 0.001, 13)
+                    p.Anchored = true; p.CanCollide = false; p.Transparency = 1
+                    p.Parent = workspace
+                    
+                    local l = Instance.new("SurfaceLight", p)
+                    l.Face = Enum.NormalId.Bottom; l.Angle = 180; l.Range = 8; l.Brightness = 4
+                    
+                    underglowParts[car] = {part = p, body = body, light = l}
+                end
+                -- Nur die Farbe updaten (kein Neuladen, kein Flackern)
+                underglowParts[car].light.Color = Color3.fromRGB(AutoCfg.UGR, AutoCfg.UGG, AutoCfg.UGB)
             end
+        elseif underglowParts[car] then
+            -- Auto gehört nicht mehr zur Auswahl → Underglow entfernen
+            underglowParts[car].part:Destroy()
+            underglowParts[car] = nil
         end
     end
 end
@@ -1545,11 +1560,11 @@ crosshairTab:Toggle({
 })
 
 crosshairTab:Slider({
-    Title = "Sichtbarkeit (Transparenz) %",
-    Desc = "Macht das Fadenkreuz durchsichtiger",
+    Title = "Sichtbarkeit",
+    Desc = "100% = Voll sichtbar, 10% = Fast durchsichtig",
     Step = 10,
     Value = {Min = 10, Max = 100, Default = 100},
-    Callback = function(v) chTransparency = v / 100 end
+    Callback = function(v) chTransparency = 1 - (v / 100) end -- Korrekte Umrechnung
 })
 
 crosshairTab:Toggle({
@@ -1576,14 +1591,6 @@ crosshairTab:Toggle({
 -- 📏 ABMESSUNGEN & POSITION
 -- ==========================================
 crosshairTab:Divider({Text = "Größe & Position"})
-
-crosshairTab:Slider({
-    Title = "Manuelle Höhe (Y-Verschiebung)",
-    Desc = "Schiebt das Crosshair hoch oder runter (- = hoch)",
-    Step = 1,
-    Value = {Min = -50, Max = 50, Default = -18},
-    Callback = function(v) chOffsetY = v end
-})
 
 crosshairTab:Slider({
     Title = "Dicke",
@@ -2695,36 +2702,37 @@ settingsTab:Button({
                 skyInstance[prop] = value
             end
         end
-        if skyconnection then skyconnection:Disconnect() end
-        if fullbrightConnection then fullbrightConnection:Disconnect() end
-        if timeConnection then timeConnection:Disconnect() end
+        if skyconnection then skyconnection:Disconnect(); skyconnection = nil end
+        if fullbrightConnection then fullbrightConnection:Disconnect(); fullbrightConnection = nil end
+        if timeConnection then timeConnection:Disconnect(); timeConnection = nil end
         if originalLighting then
             Lighting.Brightness = originalLighting.Brightness
             Lighting.GlobalShadows = originalLighting.GlobalShadows
             Lighting.OutdoorAmbient = originalLighting.OutdoorAmbient
         end
 
-        -- Underglow
-        ENABLED = false
-        for car, data in pairs(underglows) do
+        -- Underglow cleanup
+        for car, data in pairs(underglowParts) do
             if data.part then data.part:Destroy() end
         end
-        underglows = {}
+        underglowParts = {}
 
-        -- Skins & Gear
+        -- Skins & Gear reset
         skinactive = false
         for _, player in pairs(Players:GetPlayers()) do
             if player.Character then
                 local pSniper = player.Character:FindFirstChild("Sniper")
                 local pG36 = player.Character:FindFirstChild("G36")
-                
-                if pSniper and pSniper:FindFirstChild("Green") then pSniper.Green.TextureID = "" end
-                if pSniper and pSniper:FindFirstChild("Base") then pSniper.Base.TextureID = "" end
-                if pG36 and pG36:FindFirstChild("Body") then pG36.Body.TextureID = "" end
-                if pG36 and pG36:FindFirstChild("Stock") then pG36.Stock.TextureID = "" end
-                if pG36 and pG36:FindFirstChild("Scope") then pG36.Scope.TextureID = "" end
-                if pG36 and pG36:FindFirstChild("FlashlightBody") then pG36.FlashlightBody.TextureID = "" end
-                
+                if pSniper then
+                    if pSniper:FindFirstChild("Green") then pSniper.Green.TextureID = "" end
+                    if pSniper:FindFirstChild("Base") then pSniper.Base.TextureID = "" end
+                end
+                if pG36 then
+                    for _, partName in ipairs({"Body", "Stock", "Scope", "FlashlightBody"}) do
+                        local p = pG36:FindFirstChild(partName)
+                        if p then p.TextureID = "" end
+                    end
+                end
                 local acc = player.Character:FindFirstChild("PlayerAccessories")
                 if acc then
                     local helm = acc:FindFirstChild("Criminal Helmet")
@@ -2735,24 +2743,17 @@ settingsTab:Button({
             end
         end
 
-        -- Fadenkreuz
-        usecrosshair = false
-        if p1 and p2 and p3 and p4 then
-            p1.Size = UDim2.new(0, 2, 0, 15)
-            p2.Size = UDim2.new(0, 15, 0, 2)
-            p3.Size = UDim2.new(0, 2, 0, 15)
-            p4.Size = UDim2.new(0, 15, 0, 2)
-            p1.BackgroundColor3 = Color3.new(1,1,1)
-            p2.BackgroundColor3 = Color3.new(1,1,1)
-            p3.BackgroundColor3 = Color3.new(1,1,1)
-            p4.BackgroundColor3 = Color3.new(1,1,1)
-        end
+        -- Crosshair cleanup
+        chEnabled = false
+        for _, line in pairs(chLines) do line.Visible = false; pcall(function() line:Remove() end) end
+        if chCenterDot then chCenterDot.Visible = false; pcall(function() chCenterDot:Remove() end) end
 
-        -- Sniper Misc Connections
-        if noScopeConn then noScopeConn:Disconnect() end
-        if cooldownConn then cooldownConn:Disconnect() end
+        -- Sniper Connections
+        if noScopeConn then noScopeConn:Disconnect(); noScopeConn = nil end
+        if cooldownConn then cooldownConn:Disconnect(); cooldownConn = nil end
 
-        -- Script UI zerstören
+        -- Watermark & UI
+        if wmGui then wmGui:Destroy() end
         pcall(function() Window:Destroy() end)
     end
 })
