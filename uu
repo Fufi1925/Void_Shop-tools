@@ -1,0 +1,2123 @@
+-- === UNIFIED SERVICES ===
+local Players = game:GetService("Players")
+local RunService = game:GetService("RunService")
+local HttpService = game:GetService("HttpService")
+local Lighting = game:GetService("Lighting")
+local TweenService = game:GetService("TweenService")
+local UserInputService = game:GetService("UserInputService")
+local Stats = game:GetService("Stats")
+local VirtualUser = game:GetService("VirtualUser")
+local ReplicatedStorage = game:GetService("ReplicatedStorage")
+
+local localPlayer = Players.LocalPlayer
+local Camera = workspace.CurrentCamera
+local skyInstance = Lighting:FindFirstChildOfClass("Sky")
+
+-- === CONFIG PATH SETUP ===
+if not isfolder("INFINITYxEH") then
+    makefolder("INFINITYxEH")
+end
+
+local function updateconfig()
+    writefile("INFINITYxEH/values.json", HttpService:JSONEncode({
+        Skys = Skys,
+        WeaponSkins = WeaponSkins,
+        GearSkins = GearSkins,
+        CustomSounds = CustomSounds
+    }))
+end
+
+local function getDefaultConfig()
+    return {
+        Skys = {
+            ["Universe Thing"] = {
+                SkyboxBk = "rbxassetid://159454299",
+                SkyboxDn = "rbxassetid://159454296",
+                SkyboxFt = "rbxassetid://159454293",
+                SkyboxLf = "rbxassetid://159454286",
+                SkyboxRt = "rbxassetid://159454300",
+                SkyboxUp = "rbxassetid://159454288"
+            },
+            ["Purple Thing"] = {
+                SkyboxBk = "rbxassetid://16553658937",
+                SkyboxDn = "rbxassetid://16553660713",
+                SkyboxFt = "rbxassetid://16553662144",
+                SkyboxLf = "rbxassetid://16553664042",
+                SkyboxRt = "rbxassetid://16553665766",
+                SkyboxUp = "rbxassetid://16553667750"
+            },
+            ["Aurora"] = {
+                SkyboxBk = "rbxassetid://128600713462148",
+                SkyboxDn = "rbxassetid://129205524771926",
+                SkyboxFt = "rbxassetid://91295549823939",
+                SkyboxLf = "rbxassetid://78049621027692",
+                SkyboxRt = "rbxassetid://97339481871314",
+                SkyboxUp = "rbxassetid://85412515491070"
+            },
+            ["Orange"] = {
+                SkyboxBk = "rbxassetid://75806894209584",
+                SkyboxDn = "rbxassetid://88955070832523",
+                SkyboxFt = "rbxassetid://137588397191887",
+                SkyboxLf = "rbxassetid://124955584991258",
+                SkyboxRt = "rbxassetid://140343245463200",
+                SkyboxUp = "rbxassetid://134383800716949"
+            },
+            ["Moonlight"] = {
+                SkyboxBk = "rbxassetid://116261899350523",
+                SkyboxDn = "rbxassetid://92257816837512",
+                SkyboxFt = "rbxassetid://108326981730305",
+                SkyboxLf = "rbxassetid://131834280163741",
+                SkyboxRt = "rbxassetid://99525277797873",
+                SkyboxUp = "rbxassetid://125425274451894"
+            },
+            ["Mountain Black"] = {
+                SkyboxBk = "rbxassetid://264908339",
+                SkyboxDn = "rbxassetid://264907909",
+                SkyboxFt = "rbxassetid://264909420",
+                SkyboxLf = "rbxassetid://264909758",
+                SkyboxRt = "rbxassetid://264908886",
+                SkyboxUp = "rbxassetid://264907379"
+            },
+            ["Candy"] = {
+                SkyboxBk = "rbxassetid://1417494030",
+                SkyboxDn = "rbxassetid://1417494146",
+                SkyboxFt = "rbxassetid://1417494253",
+                SkyboxLf = "rbxassetid://1417494402",
+                SkyboxRt = "rbxassetid://1417494499",
+                SkyboxUp = "rbxassetid://1417494643"
+            },
+            ["Clouds"] = {
+                SkyboxBk = "rbxassetid://570557514",
+                SkyboxDn = "rbxassetid://570557775",
+                SkyboxFt = "rbxassetid://570557559",
+                SkyboxLf = "rbxassetid://570557620",
+                SkyboxRt = "rbxassetid://570557672",
+                SkyboxUp = "rbxassetid://570557727"
+            },
+            ["Nebula"] = {
+                SkyboxBk = "rbxassetid://159454299",
+                SkyboxDn = "rbxassetid://159454296",
+                SkyboxFt = "rbxassetid://159454293",
+                SkyboxLf = "rbxassetid://159454286",
+                SkyboxRt = "rbxassetid://159454300",
+                SkyboxUp = "rbxassetid://159454288"
+            },
+            ["Dark Sky"] = {
+                SkyboxBk = "rbxassetid://570555736",
+                SkyboxDn = "rbxassetid://570555964",
+                SkyboxFt = "rbxassetid://570555800",
+                SkyboxLf = "rbxassetid://570555840",
+                SkyboxRt = "rbxassetid://570555882",
+                SkyboxUp = "rbxassetid://570555929"
+            },
+            ["Art Mountain"] = {
+                SkyboxBk = "rbxassetid://2128458653",
+                SkyboxDn = "rbxassetid://2128462480",
+                SkyboxFt = "rbxassetid://2128458653",
+                SkyboxLf = "rbxassetid://2128462027",
+                SkyboxRt = "rbxassetid://2128462027",
+                SkyboxUp = "rbxassetid://2128462236"
+            },
+            ["Lake Sky"] = {
+                SkyboxBk = "rbxassetid://6823523318",
+                SkyboxDn = "rbxassetid://6823525702",
+                SkyboxFt = "rbxassetid://6823482923",
+                SkyboxLf = "rbxassetid://6823530023",
+                SkyboxRt = "rbxassetid://6823531746",
+                SkyboxUp = "rbxassetid://6823528533",
+                SunTextureId = "rbxassetid://5392574622"
+            },
+            ["Alien Red"] = {
+                SkyboxBk = "rbxassetid://7123385217",
+                SkyboxDn = "rbxassetid://7123387679",
+                SkyboxFt = "rbxassetid://7123390433",
+                SkyboxLf = "rbxassetid://7123394786",
+                SkyboxRt = "rbxassetid://7123402505",
+                SkyboxUp = "rbxassetid://7123412196"
+            },
+            ["Sun Explosion"] = {
+                SkyboxBk = "rbxassetid://9569742122",
+                SkyboxDn = "rbxassetid://9569613307",
+                SkyboxFt = "rbxassetid://9569611418",
+                SkyboxLf = "rbxassetid://9569608166",
+                SkyboxRt = "rbxassetid://9569601267",
+                SkyboxUp = "rbxassetid://9569598752"
+            },
+            ["Rio De Janeiro"] = {
+                SkyboxBk = "rbxassetid://98142652709447",
+                SkyboxDn = "rbxassetid://98142652709447",
+                SkyboxFt = "rbxassetid://98142652709447",
+                SkyboxLf = "rbxassetid://98142652709447",
+                SkyboxRt = "rbxassetid://98142652709447",
+                SkyboxUp = "rbxassetid://98142652709447",
+            },
+            ["Anime UWU"] = {
+                SkyboxBk = "rbxassetid://5196327704",
+                SkyboxDn = "rbxassetid://5196327704",
+                SkyboxFt = "rbxassetid://5196327704",
+                SkyboxLf = "rbxassetid://5196327704",
+                SkyboxRt = "rbxassetid://5196327704",
+                SkyboxUp = "rbxassetid://5196327704",
+            },
+            ["Milkyway Galaxy"] = {
+                SkyboxBk = "rbxassetid://15536110634",
+                SkyboxDn = "rbxassetid://15536112543",
+                SkyboxFt = "rbxassetid://15536116141",
+                SkyboxLf = "rbxassetid://15536114370",
+                SkyboxRt = "rbxassetid://15536118762",
+                SkyboxUp = "rbxassetid://15536117282",
+                SunTextureId = "rbxassetid://5392574622",
+                StarCount = 7000,
+            },
+        },
+        WeaponSkins = {
+            Blood = { primary = "rbxassetid://122271132142798", secondary = "rbxassetid://87911546375139" },
+            Gold = { primary = "rbxassetid://102006781490148", secondary = "rbxassetid://102006781490148" },
+            Galaxy = { primary = "rbxassetid://122271132142798", secondary = "rbxassetid://83994660888462" },
+            Black = { primary = "rbxassetid://122271132142798", secondary = "rbxassetid://122271132142798" },
+            Devil = { primary = "rbxassetid://81551553428680", secondary = "rbxassetid://81551553428680" },
+            Lukas = { primary = "rbxassetid://115106055477472", secondary = "rbxassetid://115106055477472" },
+            Ozean = { primary = "rbxassetid://138912737283012", secondary = "rbxassetid://138912737283012" }
+        },
+        GearSkins = {
+            Black = "rbxassetid://122271132142798",
+            Gold = "rbxassetid://102006781490148",
+            Devil = "rbxassetid://81551553428680",
+            Ozean = "rbxassetid://138912737283012",
+            Galaxy = "rbxassetid://122271132142798"
+        },
+        CustomSounds = {
+            DC_15X = "rbxassetid://936447863",
+            Neverlose = "rbxassetid://8679627751",
+            Minecraft = "rbxassetid://8766809464",
+            MinecraftHit2 = "rbxassetid://8458185621",
+            ["Teamfortress Bonk"] = "rbxassetid://8255306220",
+            ["Teamfortress Bell"] = "rbxassetid://2868331684",
+            Excalibur = "rbxassetid://153613030",
+            Simple = "rbxassetid://3748776946",
+            Bing = "rbxassetid://6607204501",
+            Skeet = "rbxassetid://5633695679",
+            Rust = "rbxassetid://1255040462",
+            Pick = "rbxassetid://1347140027",
+            Shine = "rbxassetid://5693220817",
+            Metal = "rbxassetid://8917041751",
+            Shield = "rbxassetid://140073271098075",                                                                
+            Headshot = "rbxassetid://2513174484",
+            Grrr = "rbxassetid://8603227350", 
+            Rizz = "rbxassetid://89848519630209",
+            Mommy = "rbxassetid://90759147003294"
+        }
+    }
+end
+
+local success, config = pcall(function()
+    if isfile("INFINITYxEH/values.json") then
+        return HttpService:JSONDecode(readfile("INFINITYxEH/values.json"))
+    end
+end)
+
+if not success or not config or not config.Skys or not config.WeaponSkins or not config.GearSkins or not config.CustomSounds then
+    config = getDefaultConfig()
+    updateconfig()
+end
+
+Skys = config.Skys
+WeaponSkins = config.WeaponSkins
+GearSkins = config.GearSkins
+CustomSounds = config.CustomSounds
+
+-- === WIND UI INITIALIZATION ===
+local WindUI = loadstring(game:HttpGet("https://github.com/Footagesus/WindUI/releases/latest/download/main.lua"))()
+local Window = Window or WindUI:CreateWindow({
+    Title = "INFINITYxEH",
+    Icon = "crown",
+    Author = "by Fufi and Vexo",
+    Folder = "INFINITYxEH",
+    Resizable = false,
+})
+
+local ConfigManager = Window.ConfigManager
+
+WindUI:AddTheme({
+    Name = "INFINITYxEH",
+    Accent = WindUI:Gradient({
+        ["0"] = { Color = Color3.fromHex("#6d28d9"), Transparency = 0 },
+        ["100"] = { Color = Color3.fromHex("#1d4ed8"), Transparency = 0 }, 
+    }, { Rotation = 25 }),
+    Background = Color3.fromHex("#0a0303"),
+    BackgroundTransparency = 0,
+    Outline = Color3.fromHex("#ffffff"),
+    Text = Color3.fromHex("#f7f7ff"),
+    Placeholder = Color3.fromHex("#6a6aa8"),
+    Button = Color3.fromHex("#0c0a1c"),
+    Icon = Color3.fromHex("#8f88ff"),
+    Hover = Color3.fromHex("#151236"),
+    WindowBackground = WindUI:Gradient({
+        ["0"]   = { Color = Color3.fromHex("#4a0a0a"), Transparency = 0 },
+        ["100"] = { Color = Color3.fromHex("#000000"), Transparency = 0 },
+    }, { Rotation = 45 }),
+    WindowShadow = Color3.fromHex("#000000"),
+    DialogBackground = Color3.fromHex("#000000"),
+    DialogBackgroundTransparency = 0,
+    DialogTitle = Color3.fromHex("#ffffff"),
+    DialogContent = Color3.fromHex("#d9d6ff"),
+    DialogIcon = Color3.fromHex("#a29bff"),
+    WindowTopbarButtonIcon = Color3.fromHex("#9f97ff"),
+    WindowTopbarTitle = Color3.fromHex("#ffffff"),
+    WindowTopbarAuthor = Color3.fromHex("#b7b2ff"),
+    WindowTopbarIcon = Color3.fromHex("#eaeaff"),
+    TabBackground = Color3.fromHex("#000000"),
+    TabTitle = Color3.fromHex("#e4e1ff"),
+    TabIcon = Color3.fromHex("#7f78ff"),
+    ElementBackground = Color3.fromHex("#000000"),
+    ElementTitle = Color3.fromHex("#ffffff"),
+    ElementDesc = Color3.fromHex("#9d97ff"),
+    ElementIcon = Color3.fromHex("#6f6bff"),
+    PopupBackground = Color3.fromHex("#0a0922"),
+    PopupBackgroundTransparency = 0,
+    PopupTitle = Color3.fromHex("#ffffff"),
+    PopupContent = Color3.fromHex("#d0ccff"),
+    PopupIcon = Color3.fromHex("#9f97ff"),
+    Toggle = WindUI:Gradient({
+        ["0"] = { Color = Color3.fromHex("#7c3aed"), Transparency = 0 },
+        ["100"] = { Color = Color3.fromHex("#2563eb"), Transparency = 0 },
+    }, { Rotation = 90 }),
+    ToggleBar = Color3.fromHex("#060514"),
+    Checkbox = Color3.fromHex("#1b173d"),
+    CheckboxIcon = Color3.fromHex("#f0f0ff"),
+    Slider = WindUI:Gradient({
+        ["0"] = { Color = Color3.fromHex("#5b21b6"), Transparency = 0 },
+        ["100"] = { Color = Color3.fromHex("#1e40af"), Transparency = 0 },
+    }, { Rotation = 0 }),
+    SliderThumb = Color3.fromHex("#ffffff"),
+})
+
+WindUI:SetTheme("INFINITYxEH")
+Window:SetToggleKey(Enum.KeyCode.K)
+Window:DisableTopbarButtons({"Fullscreen"})
+
+local firstclose = true
+Window:OnClose(function()
+    if firstclose then
+        WindUI:Notify({
+            Title = "Info",
+            Content = "Drücke 'K' um die UI zu öffnen/schließen",
+            Duration = 5,
+            Icon = "info",
+        })
+        firstclose = false
+    end
+end)
+
+-- === TAB: INFO ===
+local info = Window:Tab({ Title = "Info", Icon = "info" })
+info:Select()
+
+info:Paragraph({
+    Title = "🚀 Coming Soon",
+    Desc = "Bald kommt mehr!\n\n🔊 Sounds auf anderen Waffen\n🚗 Neue Cars\n🛠️ Mods\n✨ und vieles mehr!\n\nBleib dran für die nächsten Updates!",
+    Color = "Blue",
+    Buttons = {
+        {
+            Icon = "info",
+            Title = "Mehr Infos bald",
+            Callback = function() end,
+        }
+    }
+})
+
+info:Paragraph({
+    Title = "ℹ️ About This Script",
+    Desc = "Dies ist KEIN Cheat! ❌\n\nDieses Script wurde erstellt, um das Spielerlebnis zu verbessern und coole Cosmetics hinzuzufügen. 🎨\n\nEs geht nur um mehr Spaß und Style – nicht ums Schummeln!\n\n💬 Ein offizieller Discord-Server kommt bald – bleib gespannt!",
+    Color = "Green",
+    Buttons = {
+        {
+            Icon = "link",
+            Title = "Discord (NEU)",
+            Callback = function()
+                local invite = game:HttpGet("https://raw.githubusercontent.com/Fufi1925/Void_Shop-tools/refs/heads/main/dc")
+                if setclipboard then
+                    setclipboard(invite)
+                end
+            end,
+        }
+    }
+})
+
+-- === TAB: ENVIRONMENT (HIMMEL) ===
+local environment = Window:Tab({ Title = "Himmel", Icon = "mountain-snow" })
+
+local skystate, currentsky, stdsky
+local skylist = {}
+local skyconnection, fullbrightState, fullbrightConnection, originalLighting
+local freezeTime = false
+local frozenTime = Lighting.ClockTime
+local timeConnection
+
+for name, _ in pairs(Skys) do
+    table.insert(skylist, name)
+end
+
+local function updatesky()
+    if skystate and currentsky and Skys[currentsky] then
+        local data = Skys[currentsky]
+        if not stdsky then
+            stdsky = {}
+            for _, prop in ipairs({
+                "SkyboxBk", "SkyboxDn", "SkyboxFt",
+                "SkyboxLf", "SkyboxRt", "SkyboxUp",
+                "SunTextureId", "MoonTextureId"
+            }) do
+                stdsky[prop] = skyInstance[prop]
+            end
+        end
+
+        for prop, value in pairs(data) do
+            skyInstance[prop] = value
+        end
+
+        if not skyconnection then
+            skyconnection = RunService.RenderStepped:Connect(function()
+                if skystate then
+                    skyInstance.SunTextureId = ""
+                    skyInstance.MoonTextureId = ""
+                end
+            end)
+        end
+    else
+        if stdsky then
+            for prop, value in pairs(stdsky) do
+                skyInstance[prop] = value
+            end
+        end
+        if skyconnection then
+            skyconnection:Disconnect()
+            skyconnection = nil
+        end
+    end
+end
+
+environment:Toggle({
+    Title = "Custom Sky",
+    Flag = "sky",
+    Callback = function(state)
+        skystate = state
+        updatesky()
+    end
+})
+
+local Skyselector = environment:Dropdown({
+    Title = "Skys",
+    Desc = "Unsere Custom Himmel",
+    Values = skylist,
+    Multi = false,
+    AllowNone = true,
+    Flag = "skydrop",
+    Callback = function(option)
+        currentsky = option
+        updatesky()
+    end
+})
+
+local skyinput = environment:Input({
+    Title = "Import Sky",
+    Placeholder = 'Skybox JSON . . .',
+    Type = "Input",
+    Callback = function(input)
+        if input == "" then return end
+        local success, result = pcall(function() return HttpService:JSONDecode(input) end)
+        if not success then
+            WindUI:Notify({ Title = "ERROR", Content = "Kein gültiges JSON", Duration = 3, Icon = "triangle-alert" })
+            skyinput:Set("")
+            return
+        end
+
+        local addedNames = {}
+        for name, sky in pairs(result) do
+            if type(sky) ~= "table" or not (sky.SkyboxUp and sky.SkyboxRt and sky.SkyboxLf and sky.SkyboxFt and sky.SkyboxBk and sky.SkyboxDn) then
+                WindUI:Notify({ Title = "ERROR", Content = "Ungültiges Format", Duration = 3, Icon = "triangle-alert" })
+                skyinput:Set("")
+                return
+            end
+            Skys[name] = sky
+            table.insert(addedNames, name)
+        end
+
+        skylist = {}
+        for name, _ in pairs(Skys) do table.insert(skylist, name) end
+        Skyselector:Refresh(skylist)
+        updateconfig()
+        skyinput:Set("")
+        WindUI:Notify({ Title = "ERFOLG", Content = table.concat(addedNames, ", ") .. " hinzugefügt!", Duration = 3, Icon = "badge-check" })
+    end
+})
+
+environment:Toggle({
+    Title = "FullBright",
+    Flag = "fullbright",
+    Callback = function(state)
+        fullbrightState = state
+        if state then
+            if not originalLighting then
+                originalLighting = {
+                    Brightness = Lighting.Brightness,
+                    GlobalShadows = Lighting.GlobalShadows,
+                    OutdoorAmbient = Lighting.OutdoorAmbient
+                }
+            end
+            if not fullbrightConnection then
+                fullbrightConnection = RunService.RenderStepped:Connect(function()
+                    if fullbrightState then
+                        Lighting.Brightness = 0.3
+                        Lighting.GlobalShadows = false
+                        Lighting.OutdoorAmbient = Color3.fromRGB(255, 255, 255)
+                    end
+                end)
+            end
+        else
+            if fullbrightConnection then
+                fullbrightConnection:Disconnect()
+                fullbrightConnection = nil
+            end
+            if originalLighting then
+                Lighting.Brightness = originalLighting.Brightness
+                Lighting.GlobalShadows = originalLighting.GlobalShadows
+                Lighting.OutdoorAmbient = originalLighting.OutdoorAmbient
+            end
+        end
+    end
+})
+
+environment:Toggle({
+    Title = "Zeit einfrieren",
+    Flag = "freezetime",
+    Callback = function(state)
+        freezeTime = state
+        if state then
+            if not timeConnection then
+                timeConnection = RunService.RenderStepped:Connect(function()
+                    if freezeTime then Lighting.ClockTime = frozenTime end
+                end)
+            end
+        else
+            if timeConnection then
+                timeConnection:Disconnect()
+                timeConnection = nil
+            end
+        end
+    end
+})
+
+environment:Slider({
+    Title = "Uhrzeit",
+    Desc = "Uhrzeit manuell einstellen",
+    Step = 0.1,
+    Value = { Min = 0, Max = 24, Default = Lighting.ClockTime },
+    Flag = "time",
+    Callback = function(value)
+        frozenTime = value
+        Lighting.ClockTime = value
+    end
+})
+
+environment:Button({
+    Title = "Himmel löschen",
+    Desc = "Entfernt den ausgewählten Custom Himmel",
+    Callback = function()
+        if not currentsky then return end
+        Skys[currentsky] = nil
+        WindUI:Notify({ Title = "Info", Content = "Entfernt: " .. currentsky, Duration = 5, Icon = "info" })
+        currentsky = nil
+        Skyselector:Select(nil)
+        skylist = {}
+        for name, _ in pairs(Skys) do table.insert(skylist, name) end
+        Skyselector:Refresh(skylist)
+        updateconfig()
+        updatesky()
+    end
+})
+
+-- === TAB: AUTO ===
+local autoTab = Window:Tab({ Title = "Auto", Icon = "car" })
+local autoConfigFile = "INFINITYxEH/auto_settings.json"
+
+local AutoCfg = {
+    UGEnabled = false, UGAll = false, UGR = 255, UGG = 0, UGB = 0,
+    HeadlightMod = false, HeadlightBright = 2, HLR = 255, HLG = 255, HLB = 255,
+    PaintEnabled = false, PaintAll = false, PaintR = 255, PaintG = 255, PaintB = 255,
+    MatEnabled = false, MatAll = false, MatType = "SmoothPlastic",
+    Horn = "Default",
+    PlateEnabled = false, PlateText = "INFINITY", PlateStyle = "Dark",
+    PlateR = 255, PlateG = 255, PlateB = 255,
+    CruiseControl = false, CruiseSpeed = 50,
+    DriftMode = false, OffroadGrip = false,
+    SuspensionMode = "Default", Hovercar = false,
+    AutoFlip = false, InstaBrake = false
+}
+
+pcall(function()
+    if isfile(autoConfigFile) then
+        local decoded = HttpService:JSONDecode(readfile(autoConfigFile))
+        for k, v in pairs(decoded) do
+            if type(v) == "table" and v.R then AutoCfg[k] = Color3.new(v.R, v.G, v.B)
+            else AutoCfg[k] = v end
+        end
+    end
+end)
+
+local function saveAutoConfig()
+    pcall(function()
+        local toSave = {}
+        for k, v in pairs(AutoCfg) do
+            if typeof(v) == "Color3" then toSave[k] = {R = v.R, G = v.G, B = v.B}
+            else toSave[k] = v end
+        end
+        writefile(autoConfigFile, HttpService:JSONEncode(toSave))
+    end)
+end
+
+local hornList = {
+    ["Default"] = "",
+    ["La Cucaracha"] = "rbxassetid://134764024",
+    ["Zug-Horn"] = "rbxassetid://4580219665",
+    ["Troll / Meme"] = "rbxassetid://6052562028",
+    ["Clown Tröte"] = "rbxassetid://663248386"
+}
+
+local underglowParts = {}
+local OriginalPhysics = {}
+
+local function getLocalCar()
+    local vehicles = workspace:FindFirstChild("Vehicles")
+    if not vehicles then return nil end
+    for _, car in ipairs(vehicles:GetChildren()) do
+        local owner = car:FindFirstChild("Owner")
+        if (owner and owner.Value == localPlayer) or car.Name:find(localPlayer.Name) then
+            return car
+        end
+    end
+    return nil
+end
+
+local function applyUnderglow()
+    for car, data in pairs(underglowParts) do if data.part then data.part:Destroy() end end
+    underglowParts = {}
+
+    if not AutoCfg.UGEnabled then return end
+    local vehicles = workspace:FindFirstChild("Vehicles")
+    if not vehicles then return end
+
+    for _, car in ipairs(vehicles:GetChildren()) do
+        local isMine = false
+        local owner = car:FindFirstChild("Owner")
+        if (owner and owner.Value == localPlayer) or car.Name:find(localPlayer.Name) then isMine = true end
+
+        if AutoCfg.UGAll or isMine then
+            local body = car:FindFirstChild("Body") and car.Body:FindFirstChild("Body")
+            if body and body:IsA("BasePart") then
+                local p = Instance.new("Part", workspace)
+                p.Size = Vector3.new(4, 0.001, 13)
+                p.Anchored = true; p.CanCollide = false; p.Transparency = 1
+                
+                local l = Instance.new("SurfaceLight", p)
+                l.Face = Enum.NormalId.Bottom; l.Angle = 180; l.Range = 8; l.Brightness = 4
+                l.Color = Color3.fromRGB(AutoCfg.UGR, AutoCfg.UGG, AutoCfg.UGB)
+
+                underglowParts[car] = {part = p, body = body, light = l}
+            end
+        end
+    end
+end
+
+RunService.RenderStepped:Connect(function()
+    for car, data in pairs(underglowParts) do
+        if data.body and data.part then
+            data.part.CFrame = data.body.CFrame * CFrame.new(0, -data.body.Size.Y + 2.5, 0)
+        end
+    end
+end)
+
+local vehFolder = workspace:FindFirstChild("Vehicles")
+if vehFolder then 
+    vehFolder.ChildAdded:Connect(applyUnderglow) 
+    vehFolder.ChildRemoved:Connect(function(car)
+        if underglowParts[car] then
+            if underglowParts[car].part then underglowParts[car].part:Destroy() end
+            underglowParts[car] = nil
+        end
+    end)
+end
+
+-- Visual Loop (0.5s)
+task.spawn(function()
+    while task.wait(0.5) do
+        pcall(function()
+            local vehicles = workspace:FindFirstChild("Vehicles")
+            if not vehicles then return end
+            local myCar = getLocalCar()
+
+            for _, car in ipairs(vehicles:GetChildren()) do
+                local isMine = (car == myCar)
+
+                if (isMine and (AutoCfg.PaintEnabled or AutoCfg.MatEnabled)) or (AutoCfg.PaintAll or AutoCfg.MatAll) then
+                    for _, part in ipairs(car:GetDescendants()) do
+                        if part:IsA("BasePart") then
+                            local n = part.Name:lower()
+                            if n:match("body") or n:match("chassis") or n:match("door") or n:match("hood") or n:match("trunk") then
+                                if (isMine and AutoCfg.PaintEnabled) or AutoCfg.PaintAll then
+                                    part.Color = Color3.fromRGB(AutoCfg.PaintR, AutoCfg.PaintG, AutoCfg.PaintB)
+                                end
+                                if (isMine and AutoCfg.MatEnabled) or AutoCfg.MatAll then
+                                    part.Material = Enum.Material[AutoCfg.MatType] or Enum.Material.SmoothPlastic
+                                end
+                            end
+                        end
+                    end
+                end
+
+                if isMine then
+                    if AutoCfg.HeadlightMod then
+                        for _, obj in ipairs(car:GetDescendants()) do
+                            if obj:IsA("SpotLight") or obj:IsA("SurfaceLight") or obj:IsA("PointLight") then
+                                local pName = obj.Parent and obj.Parent.Name:lower() or ""
+                                if pName:match("headlight") or pName:match("light") then
+                                    obj.Color = Color3.fromRGB(AutoCfg.HLR, AutoCfg.HLG, AutoCfg.HLB)
+                                    obj.Brightness = AutoCfg.HeadlightBright
+                                end
+                            end
+                        end
+                    end
+
+                    if AutoCfg.Horn ~= "Default" then
+                        for _, snd in ipairs(car:GetDescendants()) do
+                            if snd:IsA("Sound") and (snd.Name:lower():match("horn") or snd.Name:lower():match("honk")) then
+                                snd.SoundId = hornList[AutoCfg.Horn]
+                            end
+                        end
+                    end
+
+                    if AutoCfg.PlateEnabled then
+                        for _, obj in ipairs(car:GetDescendants()) do
+                            if obj:IsA("TextLabel") then
+                                local p1 = obj.Parent and obj.Parent.Name:lower() or ""
+                                local p2 = obj.Parent and obj.Parent.Parent and obj.Parent.Parent.Name:lower() or ""
+                                if p1:match("plate") or p2:match("plate") or obj.Name:lower():match("plate") or p1:match("license") then
+                                    obj.Text = AutoCfg.PlateText
+                                    local txtColor = Color3.fromRGB(AutoCfg.PlateR, AutoCfg.PlateG, AutoCfg.PlateB)
+                                    local container = obj.Parent
+
+                                    if AutoCfg.PlateStyle == "Dark" then
+                                        container.BackgroundColor3 = Color3.new(0.05, 0.05, 0.05)
+                                        container.BackgroundTransparency = 0
+                                        obj.TextColor3 = txtColor
+                                        obj.TextStrokeTransparency = 1
+                                    elseif AutoCfg.PlateStyle == "White" then
+                                        container.BackgroundColor3 = Color3.new(0.9, 0.9, 0.9)
+                                        container.BackgroundTransparency = 0
+                                        obj.TextColor3 = txtColor
+                                        obj.TextStrokeTransparency = 1
+                                    elseif AutoCfg.PlateStyle == "Redline" then
+                                        container.BackgroundColor3 = Color3.new(0.05, 0.05, 0.05)
+                                        container.BackgroundTransparency = 0
+                                        if container:IsA("Frame") and not container:FindFirstChild("InfStroke") then
+                                            local str = Instance.new("UIStroke", container)
+                                            str.Name = "InfStroke"; str.Color = Color3.new(1, 0, 0); str.Thickness = 2
+                                        end
+                                        obj.TextColor3 = txtColor
+                                    elseif AutoCfg.PlateStyle == "Minimal" then
+                                        container.BackgroundTransparency = 1
+                                        if container:FindFirstChild("InfStroke") then container.InfStroke:Destroy() end
+                                        obj.TextColor3 = txtColor
+                                        obj.TextStrokeTransparency = 1
+                                    elseif AutoCfg.PlateStyle == "Neon" then
+                                        container.BackgroundColor3 = Color3.new(0, 0, 0)
+                                        container.BackgroundTransparency = 0
+                                        obj.TextColor3 = txtColor
+                                        obj.TextStrokeColor3 = txtColor
+                                        obj.TextStrokeTransparency = 0.5
+                                    end
+                                end
+                            end
+                        end
+                    end
+                end
+            end
+        end)
+    end
+end)
+
+local IsBraking = false
+UserInputService.InputBegan:Connect(function(input, gpe)
+    if not gpe and input.KeyCode == Enum.KeyCode.S then IsBraking = true end
+end)
+UserInputService.InputEnded:Connect(function(input, gpe)
+    if not gpe and input.KeyCode == Enum.KeyCode.S then IsBraking = false end
+end)
+
+RunService.Heartbeat:Connect(function()
+    pcall(function()
+        local myCar = getLocalCar()
+        if not myCar then OriginalPhysics = {}; return end
+
+        local DriveSeat = myCar:FindFirstChild("DriveSeat") or myCar:FindFirstChildOfClass("VehicleSeat")
+        local Root = myCar.PrimaryPart or (DriveSeat and DriveSeat.Parent)
+        if not Root then return end
+
+        if AutoCfg.CruiseControl and DriveSeat and DriveSeat.Occupant then
+            local currentSpeed = Root.AssemblyLinearVelocity.Magnitude * 1.09 
+            if DriveSeat.Throttle == 1 and currentSpeed > AutoCfg.CruiseSpeed then
+                local dir = Root.CFrame.LookVector
+                Root.AssemblyLinearVelocity = dir * (AutoCfg.CruiseSpeed / 1.09)
+            end
+        end
+
+        if AutoCfg.InstaBrake and IsBraking and Root.AssemblyLinearVelocity.Magnitude > 5 then
+            Root.AssemblyLinearVelocity = Root.AssemblyLinearVelocity * 0.90
+        end
+
+        if AutoCfg.AutoFlip then
+            local zRot = select(3, Root.CFrame:ToEulerAnglesXYZ())
+            if math.abs(math.deg(zRot)) > 80 then
+                Root.CFrame = Root.CFrame * CFrame.Angles(0, 0, -zRot) + Vector3.new(0, 3, 0)
+                Root.AssemblyAngularVelocity = Vector3.zero
+            end
+        end
+
+        for _, v in ipairs(myCar:GetDescendants()) do
+            if v:IsA("BasePart") and (v.Name:lower():match("wheel") or v.Name:lower():match("tire")) then
+                if not OriginalPhysics[v] then
+                    OriginalPhysics[v] = { Prop = v.CustomPhysicalProperties or PhysicalProperties.new(v.Material), Collide = v.CanCollide }
+                end
+
+                if AutoCfg.Hovercar then
+                    v.CanCollide = false
+                else
+                    v.CanCollide = OriginalPhysics[v].Collide
+                    if AutoCfg.DriftMode then
+                        v.CustomPhysicalProperties = PhysicalProperties.new(0.1, 0, 0, 100, 100) 
+                    elseif AutoCfg.OffroadGrip then
+                        v.CustomPhysicalProperties = PhysicalProperties.new(2, 1, 0, 100, 100) 
+                    else
+                        v.CustomPhysicalProperties = OriginalPhysics[v].Prop
+                    end
+                end
+            end
+        end
+
+        if AutoCfg.Hovercar then
+            local upForce = workspace.Gravity * Root.AssemblyMass
+            Root:ApplyImpulse(Vector3.new(0, upForce * 1.01, 0)) 
+        end
+
+        for _, v in ipairs(myCar:GetDescendants()) do
+            if v:IsA("SpringConstraint") or v:IsA("CylindricalConstraint") then
+                if not OriginalPhysics[v] then
+                    OriginalPhysics[v] = { MaxL = v.MaxLength, MinL = v.MinLength, Damp = v.Damping, Stiff = v.Stiffness }
+                end
+
+                if AutoCfg.SuspensionMode == "Monster Truck" then
+                    v.MaxLength = OriginalPhysics[v].MaxL * 2
+                    v.MinLength = OriginalPhysics[v].MinL * 2
+                    v.Stiffness = OriginalPhysics[v].Stiff * 1.5
+                elseif AutoCfg.SuspensionMode == "Slammed" then
+                    v.MaxLength = 0.5
+                    v.MinLength = 0.1
+                elseif AutoCfg.SuspensionMode == "Bouncy" then
+                    v.Damping = 0
+                    v.Stiffness = OriginalPhysics[v].Stiff / 3
+                else
+                    v.MaxLength = OriginalPhysics[v].MaxL
+                    v.MinLength = OriginalPhysics[v].MinL
+                    v.Damping = OriginalPhysics[v].Damp
+                    v.Stiffness = OriginalPhysics[v].Stiff
+                end
+            end
+        end
+    end)
+end)
+
+-- UI Aufbau für Auto
+autoTab:Paragraph({Title = "💡 Beleuchtung"})
+autoTab:Toggle({Title = "Underglow an/aus", Value = AutoCfg.UGEnabled, Callback = function(v) AutoCfg.UGEnabled = v; applyUnderglow(); saveAutoConfig() end})
+autoTab:Toggle({Title = "Für alle Autos anzeigen", Value = AutoCfg.UGAll, Callback = function(v) AutoCfg.UGAll = v; applyUnderglow(); saveAutoConfig() end})
+autoTab:Colorpicker({Title = "Underglow Farbe", Default = Color3.fromRGB(AutoCfg.UGR, AutoCfg.UGG, AutoCfg.UGB), Callback = function(c) AutoCfg.UGR=c.R*255; AutoCfg.UGG=c.G*255; AutoCfg.UGB=c.B*255; for _,d in pairs(underglowParts) do d.light.Color = c end; saveAutoConfig() end})
+
+autoTab:Divider()
+autoTab:Toggle({Title = "Custom Scheinwerfer", Value = AutoCfg.HeadlightMod, Callback = function(v) AutoCfg.HeadlightMod = v; saveAutoConfig() end})
+autoTab:Slider({Title = "Scheinwerfer Helligkeit", Step = 1, Value = {Min = 1, Max = 10, Default = AutoCfg.HeadlightBright}, Callback = function(v) AutoCfg.HeadlightBright = v; saveAutoConfig() end})
+autoTab:Colorpicker({Title = "Scheinwerfer Farbe", Default = Color3.fromRGB(AutoCfg.HLR, AutoCfg.HLG, AutoCfg.HLB), Callback = function(c) AutoCfg.HLR=c.R*255; AutoCfg.HLG=c.G*255; AutoCfg.HLB=c.B*255; saveAutoConfig() end})
+
+autoTab:Paragraph({Title = "🎨 Lackierung & Material"})
+autoTab:Toggle({Title = "Eigene Auto-Farbe", Value = AutoCfg.PaintEnabled, Callback = function(v) AutoCfg.PaintEnabled = v; saveAutoConfig() end})
+autoTab:Colorpicker({Title = "Farbe wählen", Default = Color3.fromRGB(AutoCfg.PaintR, AutoCfg.PaintG, AutoCfg.PaintB), Callback = function(c) AutoCfg.PaintR=c.R*255; AutoCfg.PaintG=c.G*255; AutoCfg.PaintB=c.B*255; saveAutoConfig() end})
+autoTab:Toggle({Title = "Farbe auf ALLE Autos anwenden", Value = AutoCfg.PaintAll, Callback = function(v) AutoCfg.PaintAll = v; saveAutoConfig() end})
+
+autoTab:Divider()
+autoTab:Toggle({Title = "Eigenes Material", Value = AutoCfg.MatEnabled, Callback = function(v) AutoCfg.MatEnabled = v; saveAutoConfig() end})
+autoTab:Dropdown({Title = "Material wählen", Values = {"SmoothPlastic", "Neon", "ForceField", "Glass", "Foil"}, Value = AutoCfg.MatType, Callback = function(v) AutoCfg.MatType = v; saveAutoConfig() end})
+autoTab:Toggle({Title = "Material auf ALLE Autos anwenden", Value = AutoCfg.MatAll, Callback = function(v) AutoCfg.MatAll = v; saveAutoConfig() end})
+
+autoTab:Paragraph({Title = "🏷️ Extras (Hupe & Schild)"})
+autoTab:Dropdown({Title = "Custom Hupe", Values = {"Default", "La Cucaracha", "Zug-Horn", "Troll / Meme", "Clown Tröte"}, Value = AutoCfg.Horn, Callback = function(v) AutoCfg.Horn = v; saveAutoConfig() end})
+
+autoTab:Divider()
+autoTab:Toggle({Title = "Custom Nummernschild", Value = AutoCfg.PlateEnabled, Callback = function(v) AutoCfg.PlateEnabled = v; saveAutoConfig() end})
+autoTab:Input({Title = "Nummernschild Text", Placeholder = "INFINITY", Callback = function(t) if t ~= "" then AutoCfg.PlateText = t; saveAutoConfig() end end})
+autoTab:Dropdown({Title = "Nummernschild Style", Values = {"Dark", "White", "Redline", "Minimal", "Neon"}, Value = AutoCfg.PlateStyle, Callback = function(v) AutoCfg.PlateStyle = v; saveAutoConfig() end})
+autoTab:Colorpicker({Title = "Nummernschild Text-Farbe", Default = Color3.fromRGB(AutoCfg.PlateR, AutoCfg.PlateG, AutoCfg.PlateB), Callback = function(c) AutoCfg.PlateR=c.R*255; AutoCfg.PlateG=c.G*255; AutoCfg.PlateB=c.B*255; saveAutoConfig() end})
+
+autoTab:Paragraph({Title = "🚀 Fahrphysik & Tuning (Client-Side)"})
+autoTab:Toggle({Title = "Tempomat (Cruise Control)", Value = AutoCfg.CruiseControl, Callback = function(v) AutoCfg.CruiseControl = v; saveAutoConfig() end})
+autoTab:Slider({Title = "Tempomat KM/H", Step = 1, Value = {Min = 10, Max = 300, Default = AutoCfg.CruiseSpeed}, Callback = function(v) AutoCfg.CruiseSpeed = v; saveAutoConfig() end})
+
+autoTab:Divider()
+autoTab:Toggle({Title = "Drift Mode (Glatte Reifen)", Value = AutoCfg.DriftMode, Callback = function(v) AutoCfg.DriftMode = v; saveAutoConfig() end})
+autoTab:Toggle({Title = "Offroad Grip (Berg-Modus)", Value = AutoCfg.OffroadGrip, Callback = function(v) AutoCfg.OffroadGrip = v; saveAutoConfig() end})
+
+autoTab:Divider()
+autoTab:Dropdown({Title = "Federung (Suspension)", Values = {"Default", "Monster Truck", "Slammed", "Bouncy"}, Value = AutoCfg.SuspensionMode, Callback = function(v) AutoCfg.SuspensionMode = v; saveAutoConfig() end})
+autoTab:Toggle({Title = "Hovercar (Schwebe-Modus)", Value = AutoCfg.Hovercar, Callback = function(v) AutoCfg.Hovercar = v; saveAutoConfig() end})
+
+autoTab:Divider()
+autoTab:Toggle({Title = "Auto-Flipper (Anti-Turtle)", Value = AutoCfg.AutoFlip, Callback = function(v) AutoCfg.AutoFlip = v; saveAutoConfig() end})
+autoTab:Toggle({Title = "Insta-Brake (Anker werfen auf 'S')", Value = AutoCfg.InstaBrake, Callback = function(v) AutoCfg.InstaBrake = v; saveAutoConfig() end})
+
+-- === TAB: SKINS ===
+local skins = Window:Tab({ Title = "Skins", Icon = "droplets" })
+local skinlist = {"Default"}
+local sniperskin = "Default"
+local g36skin = "Default"
+local skinall = false
+local skinactive = true
+
+for name, _ in pairs(WeaponSkins) do
+    table.insert(skinlist, name)
+end
+
+skins:Toggle({
+    Title = "Auf alle anwenden",
+    Flag = "skinall",
+    Callback = function(state) skinall = state end
+})
+
+local g36skinselector = skins:Dropdown({
+    Title = "G36 Skin",
+    Values = skinlist,
+    Multi = false,
+    AllowNone = false,
+    Value = "Default",
+    Flag = "g36drop",
+    Callback = function(option) g36skin = option end
+})
+
+local sniperskinselector = skins:Dropdown({
+    Title = "Sniper Skin",
+    Values = skinlist,
+    Multi = false,
+    AllowNone = false,
+    Value = "Default",
+    Flag = "sniperdrop",
+    Callback = function(option) sniperskin = option end
+})
+
+local function applySkin(weapon, skin, weaponType)
+    if not weapon then return end
+
+    local primaryPart, secondaryParts = nil, {}
+
+    if weaponType == "Sniper" then
+        primaryPart = weapon:FindFirstChild("Green")
+        table.insert(secondaryParts, weapon:FindFirstChild("Base"))
+    elseif weaponType == "G36" then
+        primaryPart = weapon:FindFirstChild("Body")
+        for _, partName in ipairs({"Stock", "Scope", "FlashlightBody"}) do
+            local part = weapon:FindFirstChild(partName)
+            if part then table.insert(secondaryParts, part) end
+        end
+    end
+
+    if not primaryPart then return end
+
+    local expectedPrimary = ""
+    local expectedSecondary = ""
+
+    if skin ~= "Default" and WeaponSkins[skin] then
+        expectedPrimary = WeaponSkins[skin].primary or ""
+        expectedSecondary = WeaponSkins[skin].secondary or ""
+    end
+
+    -- Vermeide ununterbrochenes Überschreiben der Eigenschaft (Performance)
+    if primaryPart.TextureID ~= expectedPrimary then
+        primaryPart.TextureID = expectedPrimary
+    end
+    for _, sec in ipairs(secondaryParts) do
+        if sec.TextureID ~= expectedSecondary then
+            sec.TextureID = expectedSecondary
+        end
+    end
+end
+
+RunService.Heartbeat:Connect(function()
+    if skinactive then
+        local char = localPlayer.Character
+        if char then
+            applySkin(char:FindFirstChild("Sniper"), sniperskin, "Sniper")
+            applySkin(char:FindFirstChild("G36"), g36skin, "G36")
+        end
+
+        for _, player in pairs(Players:GetPlayers()) do
+            if player ~= localPlayer then
+                local otherChar = player.Character
+                if otherChar then
+                    local targetSniper = skinall and sniperskin or "Default"
+                    local targetG36 = skinall and g36skin or "Default"
+                    applySkin(otherChar:FindFirstChild("Sniper"), targetSniper, "Sniper")
+                    applySkin(otherChar:FindFirstChild("G36"), targetG36, "G36")
+                end
+            end
+        end
+    end
+end)
+
+local skininput = skins:Input({
+    Title = "Import Skin",
+    Placeholder = 'Skin JSON . . .',
+    Type = "Input",
+    Callback = function(input)
+        if input == "" then return end
+        local success, result = pcall(function() return HttpService:JSONDecode(input) end)
+        if not success then
+            WindUI:Notify({ Title = "ERROR", Content = "Ungültiges JSON", Duration = 3, Icon = "triangle-alert" })
+            skininput:Set("")
+            return
+        end
+
+        local addedNames = {}
+        for name, skin in pairs(result) do
+            if type(skin) ~= "table" or not (skin.primary and skin.secondary) then
+                WindUI:Notify({ Title = "ERROR", Content = "Ungültiges Format", Duration = 3, Icon = "triangle-alert" })
+                skininput:Set("")
+                return
+            end
+            WeaponSkins[name] = skin
+            table.insert(addedNames, name)
+        end
+
+        skinlist = {"Default"}
+        for name, _ in pairs(WeaponSkins) do table.insert(skinlist, name) end
+        g36skinselector:Refresh(skinlist)
+        sniperskinselector:Refresh(skinlist)
+        updateconfig()
+        skininput:Set("")
+        WindUI:Notify({ Title = "ERFOLG", Content = table.concat(addedNames, ", ") .. " hinzugefügt", Duration = 3, Icon = "badge-check" })
+    end
+end)
+
+skins:Button({
+    Title = "Skin löschen",
+    Desc = "Löscht den derzeit auf der G36 ausgerüsteten Skin",
+    Callback = function()
+        if g36skin == "Default" then
+            WindUI:Notify({ Title = "Info", Content = "Standard Skin kann nicht gelöscht werden", Duration = 5, Icon = "triangle-alert" })
+            return
+        end
+        WeaponSkins[g36skin] = nil
+        WindUI:Notify({ Title = "Info", Content = "Entfernt: " .. g36skin, Duration = 5, Icon = "info" })
+        g36skin = "Default"
+        if not WeaponSkins[sniperskin] then sniperskin = "Default" end
+
+        skinlist = {"Default"}
+        for name, _ in pairs(WeaponSkins) do table.insert(skinlist, name) end
+        g36skinselector:Refresh(skinlist)
+        sniperskinselector:Refresh(skinlist)
+        sniperskinselector:Select(sniperskin)
+        g36skinselector:Select(g36skin)
+        updateconfig()
+    end
+})
+
+skins:Divider()
+
+-- Gear Skins
+local gearlist = {"Default"}
+local vestskin = "Default"
+local headskin = "Default"
+local gearall = false
+
+for name, _ in pairs(GearSkins) do
+    table.insert(gearlist, name)
+end
+
+skins:Toggle({
+    Title = "Ausrüstung auf alle anwenden",
+    Flag = "gearall",
+    Callback = function(state) gearall = state end
+})
+
+local headskinselector = skins:Dropdown({
+    Title = "Kopf-Ausrüstung Skin",
+    Values = gearlist,
+    Multi = false,
+    AllowNone = false,
+    Value = "Default",
+    Flag = "headdrop",
+    Callback = function(option) headskin = option end
+})
+
+local vestskinselector = skins:Dropdown({
+    Title = "Westen-Ausrüstung Skin",
+    Values = gearlist,
+    Multi = false,
+    AllowNone = false,
+    Value = "Default",
+    Flag = "vestdrop",
+    Callback = function(option) vestskin = option end
+})
+
+local function applyGear(gear, skin)
+    if not gear then return end
+    local part = gear:FindFirstChild("MainPart")
+    if not part then return end
+
+    local expectedTex = ""
+    if skin == "Default" then
+        if gear.Name == "Criminal Helmet" then expectedTex = "rbxassetid://17712965665"
+        elseif gear.Name == "Criminal Vest" then expectedTex = "rbxassetid://17712967030" end
+    else
+        expectedTex = GearSkins[skin] or ""
+    end
+
+    if part.TextureID ~= expectedTex then
+        part.TextureID = expectedTex
+    end
+end
+
+RunService.Heartbeat:Connect(function()
+    if not skinactive then return end
+    local char = localPlayer.Character
+    if char then
+        local acc = char:FindFirstChild("PlayerAccessories")
+        if acc then
+            applyGear(acc:FindFirstChild("Criminal Helmet"), headskin)
+            applyGear(acc:FindFirstChild("Criminal Vest"), vestskin)
+        end
+    end
+
+    if gearall then
+        for _, player in pairs(Players:GetPlayers()) do
+            if player ~= localPlayer then
+                local otherChar = player.Character
+                if otherChar then
+                    local otherAcc = otherChar:FindFirstChild("PlayerAccessories")
+                    if otherAcc then
+                        applyGear(otherAcc:FindFirstChild("Criminal Helmet"), headskin)
+                        applyGear(otherAcc:FindFirstChild("Criminal Vest"), vestskin)
+                    end
+                end
+            end
+        end
+    end
+end)
+
+local gearinput = skins:Input({
+    Title = "Import Gear Skin",
+    Placeholder = 'Skin JSON . . .',
+    Type = "Input",
+    Callback = function(input)
+        if input == "" then return end
+        local success, result = pcall(function() return HttpService:JSONDecode(input) end)
+        if not success then
+            WindUI:Notify({ Title = "ERROR", Content = "Ungültiges JSON", Duration = 3, Icon = "triangle-alert" })
+            gearinput:Set("")
+            return
+        end
+
+        local addedNames = {}
+        for name, skin in pairs(result) do
+            if type(skin) ~= "string" then
+                WindUI:Notify({ Title = "ERROR", Content = "Muss ein String-AssetID sein", Duration = 3, Icon = "triangle-alert" })
+                gearinput:Set("")
+                return
+            end
+            GearSkins[name] = skin
+            table.insert(addedNames, name)
+        end
+
+        gearlist = {"Default"}
+        for name, _ in pairs(GearSkins) do table.insert(gearlist, name) end
+        headskinselector:Refresh(gearlist)
+        vestskinselector:Refresh(gearlist)
+        updateconfig()
+        gearinput:Set("")
+        WindUI:Notify({ Title = "ERFOLG", Content = table.concat(addedNames, ", ") .. " hinzugefügt", Duration = 3, Icon = "badge-check" })
+    end
+})
+
+skins:Button({
+    Title = "Ausrüstungsskin löschen",
+    Desc = "Löscht den derzeit auf dem Helm ausgerüsteten Skin",
+    Callback = function()
+        if headskin == "Default" then
+            WindUI:Notify({ Title = "Info", Content = "Standard Skin kann nicht gelöscht werden", Duration = 5, Icon = "triangle-alert" })
+            return
+        end
+        GearSkins[headskin] = nil
+        WindUI:Notify({ Title = "Info", Content = "Entfernt: " .. headskin, Duration = 5, Icon = "info" })
+        headskin = "Default"
+        if not GearSkins[vestskin] then vestskin = "Default" end
+
+        gearlist = {"Default"}
+        for name, _ in pairs(GearSkins) do table.insert(gearlist, name) end
+        headskinselector:Refresh(gearlist)
+        vestskinselector:Refresh(gearlist)
+        vestskinselector:Select(vestskin)
+        headskinselector:Select(headskin)
+        updateconfig()
+    end
+})
+
+-- === TAB: CROSSHAIR ===
+local crosshairTab = Window:Tab({ Title = "Crosshair", Icon = "crosshair" })
+
+local chEnabled = false
+local chHideOriginal = false
+local chCenterLocked = true 
+local chColor = Color3.fromRGB(255, 255, 255)
+local chThickness = 2
+local chLength = 12
+local chGap = 4
+local chTransparency = 1 
+local chOffsetY = -18 
+local chDot = false
+local chTShape = false 
+local chXShape = false 
+local chDynamic = false 
+local chSpin = false
+local chSpinSpeed = 100
+local chRGB = false
+
+local chLines = {
+    Top = Drawing.new("Line"),
+    Bottom = Drawing.new("Line"),
+    Left = Drawing.new("Line"),
+    Right = Drawing.new("Line")
+}
+local chCenterDot = Drawing.new("Circle")
+
+for _, line in pairs(chLines) do
+    line.Visible = false
+    line.ZIndex = 1000
+end
+chCenterDot.Visible = false
+chCenterDot.Filled = true
+chCenterDot.ZIndex = 1000
+
+local currentRotation = 0
+
+crosshairTab:Toggle({ Title = "Custom Crosshair", Flag = "ch_enable", Callback = function(state) chEnabled = state end })
+crosshairTab:Toggle({ Title = "Original Ausblenden", Desc = "Versteckt das Spiel-Fadenkreuz", Flag = "ch_hide", Callback = function(state) chHideOriginal = state end })
+crosshairTab:Toggle({ Title = "In Bildschirmmitte fixieren", Default = true, Flag = "ch_center", Callback = function(state) chCenterLocked = state end })
+
+crosshairTab:Divider({Text = "Optik & Form"})
+crosshairTab:Colorpicker({ Title = "Farbe", Default = chColor, Callback = function(color) chColor = color end })
+crosshairTab:Toggle({ Title = "Regenbogen (RGB)", Flag = "ch_rgb", Callback = function(state) chRGB = state end })
+crosshairTab:Slider({ Title = "Sichtbarkeit %", Step = 10, Value = {Min = 10, Max = 100, Default = 100}, Callback = function(v) chTransparency = v / 100 end })
+crosshairTab:Toggle({ Title = "Punkt in der Mitte", Flag = "ch_dot", Callback = function(state) chDot = state end })
+crosshairTab:Toggle({ Title = "X-Form (Diagonal)", Flag = "ch_xshape", Callback = function(state) chXShape = state end })
+crosshairTab:Toggle({ Title = "T-Shape (Oben offen)", Flag = "ch_tshape", Callback = function(state) chTShape = state end })
+
+crosshairTab:Divider({Text = "Größe & Position"})
+crosshairTab:Slider({ Title = "Manuelle Höhe (Y-Verschiebung)", Step = 1, Value = {Min = -50, Max = 50, Default = -18}, Callback = function(v) chOffsetY = v end })
+crosshairTab:Slider({ Title = "Dicke", Step = 1, Value = {Min = 1, Max = 10, Default = 2}, Callback = function(v) chThickness = v end })
+crosshairTab:Slider({ Title = "Länge", Step = 1, Value = {Min = 1, Max = 50, Default = 12}, Callback = function(v) chLength = v end })
+crosshairTab:Slider({ Title = "Abstand (Gap)", Step = 1, Value = {Min = 0, Max = 30, Default = 4}, Callback = function(v) chGap = v end })
+crosshairTab:Toggle({ Title = "Dynamischer Abstand", Flag = "ch_dyn", Callback = function(state) chDynamic = state end })
+
+crosshairTab:Divider({Text = "Animation"})
+crosshairTab:Toggle({ Title = "Rotieren", Flag = "ch_spin", Callback = function(state) chSpin = state end })
+crosshairTab:Slider({ Title = "Dreh-Geschwindigkeit", Step = 10, Value = {Min = 10, Max = 500, Default = 100}, Callback = function(v) chSpinSpeed = v end })
+
+local crosshairConnection = RunService.RenderStepped:Connect(function(dt)
+    pcall(function()
+        local plrGui = localPlayer:FindFirstChild("PlayerGui")
+        if plrGui then
+            for _, gui in pairs(plrGui:GetChildren()) do
+                local first = gui:GetChildren()[1]
+                if first then
+                    local target = first:FindFirstChild("5")
+                    if target and target:IsA("ImageLabel") and target.Image == "rbxassetid://285779644" then
+                        first.Visible = not chHideOriginal
+                    end
+                end
+            end
+        end
+    end)
+
+    if not chEnabled then
+        for _, line in pairs(chLines) do line.Visible = false end
+        chCenterDot.Visible = false
+        return
+    end
+
+    local targetPos
+    if chCenterLocked then
+        local viewport = Camera.ViewportSize
+        targetPos = Vector2.new(viewport.X / 2, (viewport.Y / 2) + chOffsetY) 
+    else
+        targetPos = UserInputService:GetMouseLocation()
+    end
+
+    local activeColor = chRGB and Color3.fromHSV(tick() % 5 / 5, 1, 1) or chColor
+    local activeGap = chGap
+    if chDynamic then
+        pcall(function()
+            local char = localPlayer.Character
+            if char and char:FindFirstChild("HumanoidRootPart") then
+                activeGap = activeGap + (char.HumanoidRootPart.Velocity.Magnitude / 3) 
+            end
+        end)
+    end
+
+    local baseRotation = chXShape and 45 or 0
+    if chSpin then
+        currentRotation = (currentRotation + (chSpinSpeed * dt)) % 360
+    else
+        currentRotation = 0
+    end
+
+    local rad = math.rad(currentRotation + baseRotation)
+    local cosA, sinA = math.cos(rad), math.sin(rad)
+
+    local function rotatePoint(offsetX, offsetY)
+        return Vector2.new(
+            targetPos.X + (offsetX * cosA - offsetY * sinA),
+            targetPos.Y + (offsetX * sinA + offsetY * cosA)
+        )
+    end
+
+    chLines.Top.From = rotatePoint(0, -activeGap)
+    chLines.Top.To = rotatePoint(0, -(activeGap + chLength))
+    chLines.Bottom.From = rotatePoint(0, activeGap)
+    chLines.Bottom.To = rotatePoint(0, activeGap + chLength)
+    chLines.Left.From = rotatePoint(-activeGap, 0)
+    chLines.Left.To = rotatePoint(-(activeGap + chLength), 0)
+    chLines.Right.From = rotatePoint(activeGap, 0)
+    chLines.Right.To = rotatePoint(activeGap + chLength, 0)
+
+    for name, line in pairs(chLines) do
+        line.Color = activeColor
+        line.Thickness = chThickness
+        line.Transparency = chTransparency
+        line.Visible = not (chTShape and not chXShape and name == "Top")
+    end
+
+    if chDot then
+        chCenterDot.Position = targetPos
+        chCenterDot.Radius = chThickness
+        chCenterDot.Color = activeColor
+        chCenterDot.Transparency = chTransparency
+        chCenterDot.Visible = true
+    else
+        chCenterDot.Visible = false
+    end
+end)
+
+-- === TAB: SOUNDS ===
+local soundtab = Window:Tab({ Title = "Sounds", Icon = "audio-lines" })
+local sounds = {
+    SniperShoot = "rbxassetid://801167040",
+    ARshoot = "rbxassetid://801226154"
+}
+
+local soundinputs = {}
+local customsoundlist = {"Default"}
+
+for customName, _ in pairs(CustomSounds) do
+    table.insert(customsoundlist, customName)
+end
+
+local soundFolder
+for _, folder in ipairs(ReplicatedStorage:GetChildren()) do
+    if folder:IsA("Folder") then
+        local firstItem = folder:GetChildren()[1]
+        if firstItem and firstItem:IsA("Sound") then
+            soundFolder = folder
+            break
+        end
+    end
+end
+
+for name, id in pairs(sounds) do
+    local foundSound = nil
+    if soundFolder then
+        for _, obj in ipairs(soundFolder:GetDescendants()) do
+            if obj:IsA("Sound") and obj.SoundId == id then
+                foundSound = obj
+                break
+            end
+        end
+    end
+
+    if foundSound then
+        local currentSound = foundSound
+        table.insert(soundinputs, soundtab:Dropdown({
+            Title = name .. " Sound",
+            Values = customsoundlist,
+            Multi = false,
+            AllowNone = false,
+            Value = "Default",
+            Flag = id,
+            Callback = function(option)
+                currentSound.SoundId = (option == "Default") and id or CustomSounds[option]
+            end
+        }))
+    end
+end
+
+-- === TAB: SNIPER (MISC) ===
+local misc = Window:Tab({ Title = "Sniper", Icon = "tool-case" })
+local noScopeConn, cooldownConn
+
+misc:Toggle({
+    Title = "OG Sniper",
+    Desc = "Sniper ohne Visier (No-Scope) benutzen",
+    Default = false,
+    Flag = "ogsniper",
+    Callback = function(state)
+        if state then
+            if noScopeConn then return end
+            noScopeConn = RunService.Heartbeat:Connect(function()
+                local char = localPlayer.Character
+                local tool = char and char:FindFirstChild("Sniper")
+                if tool then tool:SetAttribute("Scope", false) end
+            end)
+        else
+            if noScopeConn then noScopeConn:Disconnect(); noScopeConn = nil end
+        end
+    end
+})
+
+misc:Toggle({
+    Title = "OG Sniper Cooldown",
+    Desc = "Alten Sniper-Cooldown erzwingen (0.5s)",
+    Default = false,
+    Flag = "ogsniper2",
+    Callback = function(state)
+        if state then
+            if cooldownConn then return end
+            cooldownConn = RunService.Heartbeat:Connect(function()
+                local char = localPlayer.Character
+                local tool = char and char:FindFirstChild("Sniper")
+                if tool then tool:SetAttribute("ShootDelay", 0.5) end
+            end)
+        else
+            if cooldownConn then cooldownConn:Disconnect(); cooldownConn = nil end
+        end
+    end
+})
+
+misc:Button({
+    Title = "Anti AFK",
+    Desc = "Verhindert den automatischen Kick bei Inaktivität",
+    Callback = function()
+        localPlayer.Idled:Connect(function()
+            VirtualUser:Button2Down(Vector2.new(0,0), Camera.CFrame)
+            task.wait(1)
+            VirtualUser:Button2Up(Vector2.new(0,0), Camera.CFrame)
+        end)
+        WindUI:Notify({ Title = "Info", Content = "Anti AFK jetzt aktiv", Duration = 5, Icon = "info" })
+    end
+})
+
+-- === TAB: CONFIG ===
+local configTab = Window:Tab({ Title = "Config", Icon = "file-json" })
+local selectedConfig = nil
+local configInputName = ""
+
+local function getConfigs()
+    local list = {}
+    if WindUI and WindUI.Configs then
+        for name, _ in pairs(WindUI.Configs) do table.insert(list, name) end
+    end
+    table.sort(list)
+    return list
+end
+
+local configDropdown
+
+configTab:Paragraph({ Title = "📝 Neue Config erstellen", Desc = "Speichere deine aktuellen Einstellungen als neue Datei." })
+local configInput = configTab:Input({
+    Title = "Config Name",
+    Placeholder = "Name eingeben...",
+    Callback = function(text) configInputName = text end
+})
+
+configTab:Button({
+    Title = "💾 Als Neu Speichern",
+    Callback = function()
+        if not configInputName or configInputName == "" then
+            WindUI:Notify({Title = "Fehler", Content = "Bitte gib einen Namen ein!", Duration = 3, Icon = "triangle-alert"})
+            return
+        end
+        local configObj = WindUI:GetConfig(configInputName)
+        if configObj then
+            configObj:Save()
+            WindUI:Notify({Title = "Gespeichert", Content = "Config '" .. configInputName .. "' erstellt!", Duration = 3, Icon = "check"})
+            configInputName = ""
+            configInput:Set("")
+            if configDropdown then configDropdown:Refresh(getConfigs()) end
+        end
+    end
+})
+
+configTab:Divider()
+configTab:Paragraph({ Title = "⚙️ Configs verwalten", Desc = "Lade, überschreibe oder lösche deine gespeicherten Dateien." })
+
+configDropdown = configTab:Dropdown({
+    Title = "Gespeicherte Configs",
+    Values = getConfigs(),
+    AllowNone = true,
+    Multi = false,
+    Callback = function(value) selectedConfig = value end
+})
+
+configTab:Button({
+    Title = "📂 Laden",
+    Callback = function()
+        if not selectedConfig then return end
+        local configObj = WindUI:GetConfig(selectedConfig)
+        if configObj then 
+            configObj:Load() 
+            WindUI:Notify({Title = "Geladen", Content = "Config '" .. selectedConfig .. "' geladen!", Duration = 3, Icon = "check"})
+        end
+    end
+})
+
+configTab:Button({
+    Title = "💾 Überschreiben",
+    Callback = function()
+        if not selectedConfig then return end
+        local configObj = WindUI:GetConfig(selectedConfig)
+        if configObj then 
+            configObj:Save() 
+            WindUI:Notify({Title = "Überschrieben", Content = "Config '" .. selectedConfig .. "' aktualisiert!", Duration = 3, Icon = "check"})
+        end
+    end
+})
+
+configTab:Button({
+    Title = "🗑️ Löschen",
+    Callback = function()
+        if not selectedConfig then return end
+        local configObj = WindUI:GetConfig(selectedConfig)
+        if configObj then 
+            configObj:Delete() 
+            WindUI:Notify({Title = "Gelöscht", Content = "Config '" .. selectedConfig .. "' entfernt.", Duration = 3, Icon = "trash"})
+            selectedConfig = nil
+            configDropdown:Set(nil)
+            configDropdown:Refresh(getConfigs())
+        end
+    end
+})
+
+configTab:Button({ Title = "🔄 Liste Aktualisieren", Callback = function() configDropdown:Refresh(getConfigs()) end })
+
+-- === TAB: WATERMARK ===
+local watermarkTab = Window:Tab({ Title = "Watermark", Icon = "droplet" })
+local wmConfigFile = "INFINITYxEH/watermark.json"
+local sessionStartTick = tick()
+local initialMoney = 0
+local initialMoneySet = false
+
+local wmConfig = {
+    Enabled = true,
+    Style = "Onetap",
+    Font = "Code", 
+    AccentColor = Color3.fromRGB(220, 38, 38), 
+    ShowFPS = true,
+    ShowPing = true,
+    ShowTime = false,
+    ShowHP = true, 
+    ShowPlaytime = false, 
+    ShowServer = false, 
+    ShowInfo = false, 
+    ShowCops = true, 
+    ShowProfit = true, 
+    ShowVehicle = true, 
+    UseIcons = false,
+    RGBLine = false,
+    RGBText = false, 
+    Breathing = false,
+    HealthWarning = true, 
+    HideScope = true,
+    AutoPosition = true, 
+    PosX = 15,
+    PosY = 50
+}
+
+pcall(function()
+    if isfile(wmConfigFile) then
+        local decoded = HttpService:JSONDecode(readfile(wmConfigFile))
+        for k, v in pairs(decoded) do
+            if k == "AccentColor" then wmConfig[k] = Color3.new(v.R, v.G, v.B)
+            else wmConfig[k] = v end
+        end
+    end
+end)
+
+local function saveWmConfig()
+    pcall(function()
+        local toSave = {}
+        for k, v in pairs(wmConfig) do
+            if typeof(v) == "Color3" then toSave[k] = {R = v.R, G = v.G, B = v.B}
+            else toSave[k] = v end
+        end
+        writefile(wmConfigFile, HttpService:JSONEncode(toSave))
+    end)
+end
+
+local function getMoney()
+    local money = 0
+    pcall(function()
+        local ls = localPlayer:FindFirstChild("leaderstats")
+        if ls then
+            local cash = ls:FindFirstChild("Cash") or ls:FindFirstChild("Money")
+            if cash then money = cash.Value end
+        end
+    end)
+    return money
+end
+
+-- UI Elemente Watermark
+local wmGui = Instance.new("ScreenGui")
+wmGui.Name = "InfinityWatermark"
+wmGui.IgnoreGuiInset = true
+pcall(function() wmGui.Parent = (gethui and gethui()) or game:GetService("CoreGui") end)
+
+local wmFrame = Instance.new("Frame", wmGui)
+wmFrame.Visible = false 
+wmFrame.Active = true
+wmFrame.BackgroundTransparency = 1 
+
+local wmCorner = Instance.new("UICorner", wmFrame)
+local wmStroke = Instance.new("UIStroke", wmFrame)
+local wmTopLine = Instance.new("Frame", wmFrame)
+wmTopLine.BorderSizePixel = 0
+
+local wmText = Instance.new("TextLabel", wmFrame)
+wmText.Size = UDim2.new(1, -10, 1, 0)
+wmText.Position = UDim2.new(0, 5, 0, 0)
+wmText.BackgroundTransparency = 1
+wmText.RichText = true
+wmText.TextXAlignment = Enum.TextXAlignment.Left
+wmText.TextSize = 13
+wmText.TextTransparency = 1 
+
+local vehFrame = Instance.new("Frame", wmFrame)
+vehFrame.Size = UDim2.new(1, 0, 0, 0) 
+vehFrame.Position = UDim2.new(0, 0, 1, 2)
+vehFrame.BackgroundTransparency = 0.2
+vehFrame.BackgroundColor3 = Color3.fromRGB(15, 15, 15)
+vehFrame.ClipsDescendants = true
+local vehCorner = Instance.new("UICorner", vehFrame)
+vehCorner.CornerRadius = UDim.new(0, 4)
+local vehText = Instance.new("TextLabel", vehFrame)
+vehText.Size = UDim2.new(1, -10, 1, 0)
+vehText.Position = UDim2.new(0, 5, 0, 0)
+vehText.BackgroundTransparency = 1
+vehText.RichText = true
+vehText.TextColor3 = Color3.fromRGB(200, 200, 200)
+vehText.TextSize = 12
+
+local fonts = {
+    ["Code"] = Enum.Font.Code, ["Gotham"] = Enum.Font.GothamMedium,
+    ["Sci-Fi"] = Enum.Font.Jura, ["Arcade"] = Enum.Font.Arcade, ["Classic"] = Enum.Font.SourceSansBold
+}
+
+-- Dragging Logic
+local dragging, dragInput, dragStart, startPos
+wmFrame.InputBegan:Connect(function(input)
+    if input.UserInputType == Enum.UserInputType.MouseButton1 and not wmConfig.AutoPosition then
+        dragging = true
+        dragStart = input.Position
+        startPos = wmFrame.Position
+    end
+end)
+wmFrame.InputChanged:Connect(function(input)
+    if input.UserInputType == Enum.UserInputType.MouseMovement then dragInput = input end
+end)
+UserInputService.InputChanged:Connect(function(input)
+    if input == dragInput and dragging then
+        local delta = input.Position - dragStart
+        wmFrame.Position = UDim2.new(0, startPos.X.Offset + delta.X, 0, startPos.Y.Offset + delta.Y)
+    end
+end)
+UserInputService.InputEnded:Connect(function(input)
+    if input.UserInputType == Enum.UserInputType.MouseButton1 then
+        dragging = false
+        if not wmConfig.AutoPosition then
+            wmConfig.PosX = wmFrame.Position.X.Offset
+            wmConfig.PosY = wmFrame.Position.Y.Offset
+            saveWmConfig()
+        end
+    end
+end)
+
+local function applyStyle()
+    wmCorner.CornerRadius = UDim.new(0, 4)
+    wmStroke.Enabled = false
+    wmTopLine.Visible = false
+    wmText.TextColor3 = Color3.fromRGB(255, 255, 255)
+    wmText.Font = fonts[wmConfig.Font] or Enum.Font.Code
+    vehText.Font = wmText.Font
+
+    local style = wmConfig.Style
+    if style == "Onetap" then
+        wmFrame.BackgroundColor3 = Color3.fromRGB(20, 20, 20)
+        wmFrame.BackgroundTransparency = 0.2
+        wmTopLine.Visible = true
+        wmTopLine.Size = UDim2.new(1, 0, 0, 2)
+        wmTopLine.BackgroundColor3 = wmConfig.AccentColor
+        wmCorner.CornerRadius = UDim.new(0, 0)
+    elseif style == "Glassmorphism" then
+        wmFrame.BackgroundTransparency = 0.5
+        wmFrame.BackgroundColor3 = Color3.fromRGB(0, 0, 0)
+        wmCorner.CornerRadius = UDim.new(0, 8)
+        wmStroke.Enabled = true
+        wmStroke.Color = Color3.fromRGB(255, 255, 255)
+        wmStroke.Transparency = 0.8
+    elseif style == "Pill-Shape" then
+        wmCorner.CornerRadius = UDim.new(1, 0)
+    elseif style == "Neon" then
+        wmStroke.Enabled = true
+        wmStroke.Color = wmConfig.AccentColor
+        wmStroke.Thickness = 2
+    elseif style == "Minimalist" then
+        wmFrame.BackgroundTransparency = 1
+        wmText.TextStrokeTransparency = 0.5
+    end
+    if wmConfig.ShowVehicle then wmConfig.AutoPosition = true end
+end
+
+local function formatTime(sec) return string.format("%02d:%02d", math.floor(sec/60), math.floor(sec%60)) end
+
+local fpsCounter, realFps, lastTick = 0, 0, tick()
+local isStartupAnim = true
+local isVehOpen = false
+
+local watermarkConn = RunService.RenderStepped:Connect(function()
+    if not wmConfig.Enabled then wmFrame.Visible = false return end
+
+    if not initialMoneySet and getMoney() > 0 then
+        initialMoney = getMoney()
+        initialMoneySet = true
+    end
+
+    fpsCounter = fpsCounter + 1
+    if tick() - lastTick >= 1 then
+        realFps = fpsCounter
+        fpsCounter = 0
+        lastTick = tick()
+    end
+
+    if wmConfig.HideScope then
+        local inScope = false
+        pcall(function()
+            local plrGui = localPlayer:FindFirstChild("PlayerGui")
+            if plrGui then
+                for _, gui in pairs(plrGui:GetChildren()) do
+                    if gui:FindFirstChild("5") and gui:GetChildren()[1]:FindFirstChild("5").Image == "rbxassetid://285779644" then inScope = true end
+                end
+            end
+        end)
+        if inScope then wmFrame.Visible = false return
+        elseif not isStartupAnim then wmFrame.Visible = true end
+    end
+
+    if isStartupAnim then return end
+
+    if wmConfig.AutoPosition and not dragging then
+        local activeCount = 0
+        for _, check in ipairs({wmConfig.ShowFPS, wmConfig.ShowPing, wmConfig.ShowHP, wmConfig.ShowTime, wmConfig.ShowInfo, wmConfig.ShowPlaytime, wmConfig.ShowServer, wmConfig.ShowCops, wmConfig.ShowProfit}) do
+            if check then activeCount = activeCount + 1 end
+        end
+        if activeCount > 3 or wmConfig.ShowVehicle then
+            wmFrame.Position = UDim2.new(0, (Camera.ViewportSize.X / 2) - (wmFrame.Size.X.Offset / 2), 0, 20)
+        else
+            wmFrame.Position = UDim2.new(0, 15, 0, 50)
+        end
+    elseif not dragging then
+        wmFrame.Position = UDim2.new(0, wmConfig.PosX, 0, wmConfig.PosY)
+    end
+
+    local isLowHealth = false
+    local currentHp = 100
+    pcall(function()
+        local hum = localPlayer.Character and localPlayer.Character:FindFirstChild("Humanoid")
+        if hum then 
+            currentHp = math.floor(hum.Health)
+            if hum.Health <= 35 and hum.Health > 0 then isLowHealth = true end
+        end
+    end)
+
+    local cHex = string.format("#%02X%02X%02X", wmConfig.AccentColor.R*255, wmConfig.AccentColor.G*255, wmConfig.AccentColor.B*255)
+    if wmConfig.RGBText then
+        local rgb = Color3.fromHSV(tick() % 5 / 5, 1, 1)
+        cHex = string.format("#%02X%02X%02X", rgb.R*255, rgb.G*255, rgb.B*255)
+    end
+
+    if wmConfig.HealthWarning and isLowHealth and math.floor(tick() * 6) % 2 == 0 then
+        cHex = "#ff0000"
+        if wmConfig.Style == "Onetap" then wmTopLine.BackgroundColor3 = Color3.fromRGB(255,0,0) end
+        if wmConfig.Style == "Neon" then wmStroke.Color = Color3.fromRGB(255,0,0) end
+    else
+        local targetColor = wmConfig.AccentColor
+        if wmConfig.RGBLine then targetColor = Color3.fromHSV(tick() % 5 / 5, 1, 1) end
+        if wmConfig.Style == "Onetap" then wmTopLine.BackgroundColor3 = targetColor end
+        if wmConfig.Style == "Neon" then wmStroke.Color = targetColor end
+    end
+
+    local txt = (wmConfig.UseIcons and "👑 " or "") .. string.format('<font color="%s">INFINITY</font> | ', cHex)
+    if wmConfig.ShowFPS then 
+        local fColor = realFps < 30 and "#f97316" or "#ffffff" 
+        txt = txt .. string.format('%s<font color="%s">%d</font> | ', (wmConfig.UseIcons and "🚀 " or "FPS: "), fColor, realFps)
+    end
+    if wmConfig.ShowPing then
+        local ping = 0
+        pcall(function() ping = math.floor(Stats.Network.ServerStatsItem["Data Ping"]:GetValue()) end)
+        local pColor = ping > 100 and "#ef4444" or "#ffffff"
+        txt = txt .. string.format('%s<font color="%s">%dms</font> | ', (wmConfig.UseIcons and "📡 " or "Ping: "), pColor, ping)
+    end
+    if wmConfig.ShowHP then txt = txt .. (wmConfig.UseIcons and "❤️ " or "HP: ") .. currentHp .. " | " end
+    if wmConfig.ShowTime then txt = txt .. (wmConfig.UseIcons and "⌚ " or "Time: ") .. os.date("%H:%M") .. " | " end
+    if wmConfig.ShowPlaytime then txt = txt .. (wmConfig.UseIcons and "⏳ " or "Session: ") .. formatTime(tick() - sessionStartTick) .. " | " end
+    if wmConfig.ShowServer then txt = txt .. (wmConfig.UseIcons and "🌍 " or "Players: ") .. #Players:GetPlayers() .. " | " end
+    
+    if wmConfig.ShowCops then
+        local cops = 0
+        for _, p in pairs(Players:GetPlayers()) do
+            pcall(function()
+                local job = p.leaderstats.Job.Value
+                if job:lower():match("police") or job:lower():match("cop") then cops = cops + 1 end
+            end)
+        end
+        txt = txt .. (wmConfig.UseIcons and "👮 " or "Cops: ") .. cops .. " | "
+    end
+    if wmConfig.ShowProfit and initialMoneySet then
+        local profit = getMoney() - initialMoney
+        local pStr = profit >= 0 and ("+" .. profit) or tostring(profit)
+        local pCol = profit >= 0 and "#22c55e" or "#ef4444"
+        txt = txt .. string.format('%s<font color="%s">%s</font> | ', (wmConfig.UseIcons and "💸 " or "Profit: "), pCol, pStr)
+    end
+    if wmConfig.ShowInfo then
+        local job, wanted = "Citizen", 0
+        pcall(function()
+            job = localPlayer.leaderstats.Job.Value
+            wanted = localPlayer.leaderstats.Wanted.Value
+        end)
+        txt = txt .. (wmConfig.UseIcons and "💼 " or "Job: ") .. job .. " " .. string.rep("⭐", wanted) .. " | "
+    end
+
+    txt = txt:sub(1, -4)
+    wmText.Text = txt
+    wmFrame.Size = UDim2.new(0, wmText.TextBounds.X + 20, 0, 22)
+    vehFrame.Size = UDim2.new(0, wmFrame.Size.X.Offset, 0, isVehOpen and 22 or 0)
+
+    if wmConfig.ShowVehicle then
+        local inCar = false
+        local speed, fuel, health = 0, "100%", "100%"
+        pcall(function()
+            local char = localPlayer.Character
+            local hum = char and char:FindFirstChild("Humanoid")
+            local hrp = char and char:FindFirstChild("HumanoidRootPart")
+            if hum and hrp then
+                speed = math.floor(hrp.Velocity.Magnitude * 1.09)
+                if hum.SeatPart then inCar = true
+                elseif speed >= 20 and hum:GetState() ~= Enum.HumanoidStateType.Freefall and hum:GetState() ~= Enum.HumanoidStateType.Jumping then
+                    inCar = true
+                end
+                if inCar and hum.SeatPart then
+                    local carModel = hum.SeatPart:FindFirstAncestorOfClass("Model")
+                    if carModel then
+                        if carModel:GetAttribute("Fuel") then fuel = math.floor(carModel:GetAttribute("Fuel")) .. "%" end
+                        if carModel:GetAttribute("Health") then health = math.floor(carModel:GetAttribute("Health")) .. "%" end
+                    end
+                end
+            end
+        end)
+
+        if inCar and not isVehOpen then
+            isVehOpen = true
+            TweenService:Create(vehFrame, TweenInfo.new(0.3), {Size = UDim2.new(1, 0, 0, 22)}):Play()
+            TweenService:Create(vehText, TweenInfo.new(0.3), {TextTransparency = 0}):Play()
+        elseif not inCar and isVehOpen then
+            isVehOpen = false
+            TweenService:Create(vehFrame, TweenInfo.new(0.3), {Size = UDim2.new(1, 0, 0, 0)}):Play()
+            TweenService:Create(vehText, TweenInfo.new(0.3), {TextTransparency = 1}):Play()
+        end
+        if inCar then vehText.Text = string.format("🚗 %d KM/H  |  ⛽ %s  |  🔧 %s", speed, fuel, health) end
+    end
+
+    if wmConfig.Breathing and not isLowHealth then
+        local breath = (math.sin(tick() * 3) + 1) / 2
+        wmStroke.Transparency = breath
+        if wmConfig.Style == "Onetap" then wmTopLine.BackgroundTransparency = breath end
+    end
+end)
+
+watermarkTab:Paragraph({Title = "🎨 Design", Desc = "Stelle das Aussehen deines Watermarks ein."})
+watermarkTab:Dropdown({ Title = "Style auswählen", Values = {"Onetap", "Glassmorphism", "Pill-Shape", "Neon", "Minimalist"}, Value = wmConfig.Style, Callback = function(val) wmConfig.Style = val; applyStyle(); saveWmConfig() end })
+watermarkTab:Dropdown({ Title = "Schriftart (Font)", Values = {"Code", "Gotham", "Sci-Fi", "Arcade", "Classic"}, Value = wmConfig.Font, Callback = function(val) wmConfig.Font = val; applyStyle(); saveWmConfig() end })
+watermarkTab:Colorpicker({ Title = "Akzent-Farbe", Default = wmConfig.AccentColor, Callback = function(c) wmConfig.AccentColor = c; applyStyle(); saveWmConfig() end })
+
+watermarkTab:Divider({Text = "📊 Anzeige-Module"})
+watermarkTab:Toggle({Title = "Icons statt Text nutzen", Value = wmConfig.UseIcons, Callback = function(s) wmConfig.UseIcons = s; saveWmConfig() end})
+watermarkTab:Toggle({Title = "FPS (Wird Orange bei Lags)", Value = wmConfig.ShowFPS, Callback = function(s) wmConfig.ShowFPS = s; saveWmConfig() end})
+watermarkTab:Toggle({Title = "Ping", Value = wmConfig.ShowPing, Callback = function(s) wmConfig.ShowPing = s; saveWmConfig() end})
+watermarkTab:Toggle({Title = "HP (Leben)", Value = wmConfig.ShowHP, Callback = function(s) wmConfig.ShowHP = s; saveWmConfig() end})
+watermarkTab:Toggle({Title = "Spieler Online", Value = wmConfig.ShowServer, Callback = function(s) wmConfig.ShowServer = s; saveWmConfig() end})
+watermarkTab:Toggle({Title = "Echte Uhrzeit", Value = wmConfig.ShowTime, Callback = function(s) wmConfig.ShowTime = s; saveWmConfig() end})
+watermarkTab:Toggle({Title = "Session Spielzeit", Value = wmConfig.ShowPlaytime, Callback = function(s) wmConfig.ShowPlaytime = s; saveWmConfig() end})
+
+watermarkTab:Divider({Text = "🚨 EH Spezifisch"})
+watermarkTab:Toggle({Title = "Cop Radar (Zählt Polizei)", Value = wmConfig.ShowCops, Callback = function(s) wmConfig.ShowCops = s; saveWmConfig() end})
+watermarkTab:Toggle({Title = "Session Profit", Value = wmConfig.ShowProfit, Callback = function(s) wmConfig.ShowProfit = s; saveWmConfig() end})
+watermarkTab:Toggle({Title = "Dynamic Vehicle Mode (Auto Stats)", Value = wmConfig.ShowVehicle, Callback = function(s) wmConfig.ShowVehicle = s; applyStyle(); saveWmConfig() end})
+watermarkTab:Toggle({Title = "EH Job & Wanted Sterne", Value = wmConfig.ShowInfo, Callback = function(s) wmConfig.ShowInfo = s; saveWmConfig() end})
+
+watermarkTab:Divider({Text = "✨ Verhalten"})
+watermarkTab:Toggle({ Title = "Smart Auto-Position (Empfohlen)", Value = wmConfig.AutoPosition, Callback = function(s) wmConfig.AutoPosition = s; saveWmConfig() end })
+watermarkTab:Toggle({Title = "Warnung bei wenig HP", Value = wmConfig.HealthWarning, Callback = function(s) wmConfig.HealthWarning = s; saveWmConfig() end})
+watermarkTab:Toggle({Title = "RGB Text", Value = wmConfig.RGBText, Callback = function(s) wmConfig.RGBText = s; saveWmConfig() end})
+watermarkTab:Toggle({Title = "RGB Rahmen", Value = wmConfig.RGBLine, Callback = function(s) wmConfig.RGBLine = s; applyStyle(); saveWmConfig() end})
+watermarkTab:Toggle({Title = "Pulsieren (Breathing)", Value = wmConfig.Breathing, Callback = function(s) wmConfig.Breathing = s; applyStyle(); saveWmConfig() end})
+watermarkTab:Toggle({Title = "Verstecken beim Snipen", Value = wmConfig.HideScope, Callback = function(s) wmConfig.HideScope = s; saveWmConfig() end})
+
+applyStyle()
+task.spawn(function()
+    if not wmConfig.Enabled then return end
+    wmFrame.Visible = true
+    TweenService:Create(wmFrame, TweenInfo.new(1.5, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {BackgroundTransparency = wmConfig.Style == "Minimalist" and 1 or 0.2}):Play()
+    TweenService:Create(wmText, TweenInfo.new(1.5, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {TextTransparency = 0}):Play()
+    task.wait(1.5)
+    isStartupAnim = false
+end)
+
+-- === TAB: SETTINGS ===
+local settingsTab = Window:Tab({ Title = "Einstellungen", Icon = "settings" })
+
+settingsTab:Dropdown({
+    Title = "UI Farbe",
+    Desc = "Hintergrund des Menüs anpassen",
+    Values = {
+        "Cyber Purple", "Blood Red", "Ice Blue", "Toxic Green", 
+        "Gold Luxury", "Pink Galaxy", "Ocean Deep", "Fire Orange", 
+        "White Minimal", "Matrix", "Midnight Violet", "Sky Fade", 
+        "Ruby Black", "Emerald Dark", "Neon RGB"
+    },
+    Multi = false,
+    AllowNone = false,
+    Value = "Cyber Purple",
+    Callback = function(option)
+        local newBackground
+        if option == "Cyber Purple" then
+            newBackground = WindUI:Gradient({ ["0"] = { Color = Color3.fromHex("#000000"), Transparency = 0 }, ["50"] = { Color = Color3.fromHex("#6d28d9"), Transparency = 0 }, ["100"] = { Color = Color3.fromHex("#2563eb"), Transparency = 0 } }, { Rotation = 45 })
+        elseif option == "Blood Red" then
+            newBackground = WindUI:Gradient({ ["0"] = { Color = Color3.fromHex("#000000"), Transparency = 0 }, ["50"] = { Color = Color3.fromHex("#450a0a"), Transparency = 0 }, ["100"] = { Color = Color3.fromHex("#dc2626"), Transparency = 0 } }, { Rotation = 45 })
+        elseif option == "Ice Blue" then
+            newBackground = WindUI:Gradient({ ["0"] = { Color = Color3.fromHex("#020617"), Transparency = 0 }, ["50"] = { Color = Color3.fromHex("#06b6d4"), Transparency = 0 }, ["100"] = { Color = Color3.fromHex("#ffffff"), Transparency = 0 } }, { Rotation = 45 })
+        elseif option == "Toxic Green" then
+            newBackground = WindUI:Gradient({ ["0"] = { Color = Color3.fromHex("#000000"), Transparency = 0 }, ["100"] = { Color = Color3.fromHex("#22c55e"), Transparency = 0 } }, { Rotation = 45 })
+        elseif option == "Gold Luxury" then
+            newBackground = WindUI:Gradient({ ["0"] = { Color = Color3.fromHex("#000000"), Transparency = 0 }, ["50"] = { Color = Color3.fromHex("#78350f"), Transparency = 0 }, ["100"] = { Color = Color3.fromHex("#facc15"), Transparency = 0 } }, { Rotation = 45 })
+        elseif option == "Pink Galaxy" then
+            newBackground = WindUI:Gradient({ ["0"] = { Color = Color3.fromHex("#000000"), Transparency = 0 }, ["50"] = { Color = Color3.fromHex("#ec4899"), Transparency = 0 }, ["100"] = { Color = Color3.fromHex("#7c3aed"), Transparency = 0 } }, { Rotation = 45 })
+        elseif option == "Ocean Deep" then
+            newBackground = WindUI:Gradient({ ["0"] = { Color = Color3.fromHex("#020617"), Transparency = 0 }, ["50"] = { Color = Color3.fromHex("#0f766e"), Transparency = 0 }, ["100"] = { Color = Color3.fromHex("#14b8a6"), Transparency = 0 } }, { Rotation = 45 })
+        elseif option == "Fire Orange" then
+            newBackground = WindUI:Gradient({ ["0"] = { Color = Color3.fromHex("#000000"), Transparency = 0 }, ["50"] = { Color = Color3.fromHex("#991b1b"), Transparency = 0 }, ["100"] = { Color = Color3.fromHex("#f97316"), Transparency = 0 } }, { Rotation = 45 })
+        elseif option == "White Minimal" then
+            newBackground = WindUI:Gradient({ ["0"] = { Color = Color3.fromHex("#ffffff"), Transparency = 0 }, ["100"] = { Color = Color3.fromHex("#d4d4d4"), Transparency = 0 } }, { Rotation = 45 })
+        elseif option == "Matrix" then
+            newBackground = WindUI:Gradient({ ["0"] = { Color = Color3.fromHex("#000000"), Transparency = 0 }, ["50"] = { Color = Color3.fromHex("#052e16"), Transparency = 0 }, ["100"] = { Color = Color3.fromHex("#00ff66"), Transparency = 0 } }, { Rotation = 45 })
+        elseif option == "Midnight Violet" then
+            newBackground = WindUI:Gradient({ ["0"] = { Color = Color3.fromHex("#000000"), Transparency = 0 }, ["100"] = { Color = Color3.fromHex("#2e1065"), Transparency = 0 } }, { Rotation = 45 })
+        elseif option == "Sky Fade" then
+            newBackground = WindUI:Gradient({ ["0"] = { Color = Color3.fromHex("#1d4ed8"), Transparency = 0 }, ["50"] = { Color = Color3.fromHex("#38bdf8"), Transparency = 0 }, ["100"] = { Color = Color3.fromHex("#ffffff"), Transparency = 0 } }, { Rotation = 45 })
+        elseif option == "Ruby Black" then
+            newBackground = WindUI:Gradient({ ["0"] = { Color = Color3.fromHex("#000000"), Transparency = 0 }, ["100"] = { Color = Color3.fromHex("#881337"), Transparency = 0 } }, { Rotation = 45 })
+        elseif option == "Emerald Dark" then
+            newBackground = WindUI:Gradient({ ["0"] = { Color = Color3.fromHex("#000000"), Transparency = 0 }, ["100"] = { Color = Color3.fromHex("#047857"), Transparency = 0 } }, { Rotation = 45 })
+        elseif option == "Neon RGB" then
+            newBackground = WindUI:Gradient({ ["0"] = { Color = Color3.fromHex("#ef4444"), Transparency = 0 }, ["50"] = { Color = Color3.fromHex("#3b82f6"), Transparency = 0 }, ["100"] = { Color = Color3.fromHex("#22c55e"), Transparency = 0 } }, { Rotation = 45 })
+        end
+
+        WindUI:AddTheme({
+            Name = "INFINITYxEH",
+            Accent = WindUI:Gradient({ ["0"] = { Color = Color3.fromHex("#6d28d9"), Transparency = 0 }, ["100"] = { Color = Color3.fromHex("#1d4ed8"), Transparency = 0 } }, { Rotation = 25 }),
+            Background = Color3.fromHex("#0a0303"),
+            BackgroundTransparency = 0,
+            Outline = Color3.fromHex("#ffffff"),
+            Text = Color3.fromHex("#f7f7ff"),
+            Placeholder = Color3.fromHex("#6a6aa8"),
+            Button = Color3.fromHex("#0c0a1c"),
+            Icon = Color3.fromHex("#8f88ff"),
+            Hover = Color3.fromHex("#151236"),
+            WindowBackground = newBackground, 
+            WindowShadow = Color3.fromHex("#000000"),
+            DialogBackground = Color3.fromHex("#000000"),
+            DialogBackgroundTransparency = 0,
+            DialogTitle = Color3.fromHex("#ffffff"),
+            DialogContent = Color3.fromHex("#d9d6ff"),
+            DialogIcon = Color3.fromHex("#a29bff"),
+            WindowTopbarButtonIcon = Color3.fromHex("#9f97ff"),
+            WindowTopbarTitle = Color3.fromHex("#ffffff"),
+            WindowTopbarAuthor = Color3.fromHex("#b7b2ff"),
+            WindowTopbarIcon = Color3.fromHex("#eaeaff"),
+            TabBackground = Color3.fromHex("#000000"),
+            TabTitle = Color3.fromHex("#e4e1ff"),
+            TabIcon = Color3.fromHex("#7f78ff"),
+            ElementBackground = Color3.fromHex("#000000"),
+            ElementTitle = Color3.fromHex("#ffffff"),
+            ElementDesc = Color3.fromHex("#9d97ff"),
+            ElementIcon = Color3.fromHex("#6f6bff"),
+            PopupBackground = Color3.fromHex("#0a0922"),
+            PopupBackgroundTransparency = 0,
+            PopupTitle = Color3.fromHex("#ffffff"),
+            PopupContent = Color3.fromHex("#d0ccff"),
+            PopupIcon = Color3.fromHex("#9f97ff"),
+            Toggle = WindUI:Gradient({ ["0"] = { Color = Color3.fromHex("#7c3aed"), Transparency = 0 }, ["100"] = { Color = Color3.fromHex("#2563eb"), Transparency = 0 } }, { Rotation = 90 }),
+            ToggleBar = Color3.fromHex("#060514"),
+            Checkbox = Color3.fromHex("#1b173d"),
+            CheckboxIcon = Color3.fromHex("#f0f0ff"),
+            Slider = WindUI:Gradient({ ["0"] = { Color = Color3.fromHex("#5b21b6"), Transparency = 0 }, ["100"] = { Color = Color3.fromHex("#1e40af"), Transparency = 0 } }, { Rotation = 0 }),
+            SliderThumb = Color3.fromHex("#ffffff"),
+        })
+        WindUI:SetTheme("INFINITYxEH")
+    end
+})
+
+settingsTab:Button({
+    Title = '<font color="#ff0000">🔴 KILL SCRIPT 🔴</font>',
+    Desc = "Zerstört das UI und setzt alle Änderungen zurück",
+    Callback = function()
+        -- Himmel & Beleuchtung zurücksetzen
+        skystate = false
+        if stdsky then
+            for prop, value in pairs(stdsky) do skyInstance[prop] = value end
+        end
+        if skyconnection then skyconnection:Disconnect() end
+        if fullbrightConnection then fullbrightConnection:Disconnect() end
+        if timeConnection then timeConnection:Disconnect() end
+        if originalLighting then
+            Lighting.Brightness = originalLighting.Brightness
+            Lighting.GlobalShadows = originalLighting.GlobalShadows
+            Lighting.OutdoorAmbient = originalLighting.OutdoorAmbient
+        end
+
+        -- Underglow entfernen
+        AutoCfg.UGEnabled = false
+        for car, data in pairs(underglowParts) do
+            if data.part then data.part:Destroy() end
+        end
+        underglowParts = {}
+
+        -- Skins zurücksetzen
+        skinactive = false
+        for _, player in pairs(Players:GetPlayers()) do
+            if player.Character then
+                local pSniper = player.Character:FindFirstChild("Sniper")
+                local pG36 = player.Character:FindFirstChild("G36")
+                if pSniper then
+                    if pSniper:FindFirstChild("Green") then pSniper.Green.TextureID = "" end
+                    if pSniper:FindFirstChild("Base") then pSniper.Base.TextureID = "" end
+                end
+                if pG36 then
+                    if pG36:FindFirstChild("Body") then pG36.Body.TextureID = "" end
+                    if pG36:FindFirstChild("Stock") then pG36.Stock.TextureID = "" end
+                    if pG36:FindFirstChild("Scope") then pG36.Scope.TextureID = "" end
+                    if pG36:FindFirstChild("FlashlightBody") then pG36.FlashlightBody.TextureID = "" end
+                end
+                
+                local acc = player.Character:FindFirstChild("PlayerAccessories")
+                if acc then
+                    local helm = acc:FindFirstChild("Criminal Helmet")
+                    if helm and helm:FindFirstChild("MainPart") then helm.MainPart.TextureID = "rbxassetid://17712965665" end
+                    local vest = acc:FindFirstChild("Criminal Vest")
+                    if vest and vest:FindFirstChild("MainPart") then vest.MainPart.TextureID = "rbxassetid://17712967030" end
+                end
+            end
+        end
+
+        -- Custom Crosshair sauber beenden & Drawing-Elemente entladen
+        chEnabled = false
+        if crosshairConnection then crosshairConnection:Disconnect() end
+        for _, line in pairs(chLines) do line:Remove() end
+        if chCenterDot then chCenterDot:Remove() end
+
+        pcall(function()
+            local plrGui = localPlayer:FindFirstChild("PlayerGui")
+            if plrGui then
+                for _, gui in pairs(plrGui:GetChildren()) do
+                    local first = gui:GetChildren()[1]
+                    if first then
+                        local target = first:FindFirstChild("5")
+                        if target and target:IsA("ImageLabel") and target.Image == "rbxassetid://285779644" then
+                            first.Visible = true
+                        end
+                    end
+                end
+            end
+        end)
+
+        -- Connections & UI entladen
+        if noScopeConn then noScopeConn:Disconnect() end
+        if cooldownConn then cooldownConn:Disconnect() end
+        if watermarkConn then watermarkConn:Disconnect() end
+        if wmGui then wmGui:Destroy() end
+
+        pcall(function() Window:Destroy() end)
+    end
+})
+
+-- === FPS BOOST ===
+settingsTab:Button({
+    Title = "🚀 FPS Boost",
+    Desc = "Entfernt Texturen, Schatten und Partikel für maximale Performance",
+    Callback = function()
+        local Terrain = workspace:FindFirstChildOfClass("Terrain")
+        Lighting.GlobalShadows = false
+        Lighting.FogEnd = 9e9
+        Lighting.ShadowSoftness = 0
+        
+        if Terrain then
+            Terrain.WaterWaveSize = 0
+            Terrain.WaterWaveSpeed = 0
+            Terrain.WaterReflectance = 0
+            Terrain.WaterTransparency = 0
+        end
+        
+        for _, v in pairs(game:GetDescendants()) do
+            if v:IsA("BasePart") then
+                v.Material = Enum.Material.SmoothPlastic
+                v.Reflectance = 0
+                v.CastShadow = false
+            elseif v:IsA("Decal") or v:IsA("Texture") then
+                v.Transparency = 1
+            elseif v:IsA("PostEffect") or v:IsA("Atmosphere") then
+                v.Enabled = false
+            end
+        end
+        
+        WindUI:Notify({ Title = "FPS Boost", Content = "Spiel erfolgreich optimiert!", Duration = 3, Icon = "rocket" })
+    end
+})
+
+-- Saubere Zerstörung beim Beenden
+Window:OnDestroy(function()
+    if watermarkConn then watermarkConn:Disconnect() end
+    if wmGui then wmGui:Destroy() end
+    if crosshairConnection then crosshairConnection:Disconnect() end
+    for _, line in pairs(chLines) do line:Remove() end
+    if chCenterDot then chCenterDot:Remove() end
+end)
